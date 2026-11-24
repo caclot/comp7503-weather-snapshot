@@ -47,7 +47,8 @@
   .analysis-plots { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; margin-top:12px }
   .analysis-plots .plot { height:290px }
   .analysis-plots label { display:flex; align-items:center; gap:8px }
-  .analysis-plots input { width:90px; accent-color:var(--teal) }
+  .analysis-plots input { width:clamp(120px,40vw,200px); accent-color:var(--teal) }
+  .analysis-plots output { min-width:3em; font-variant-numeric:tabular-nums }
   #analysis-results { margin-top:10px }
   #analysis-results td:not(:first-child),#analysis-results th:not(:first-child) { text-align:right; font-variant-numeric:tabular-nums }
   #analysis details { margin-top:10px }
@@ -105,7 +106,7 @@
       <div>
         <div class="row"><h3 data-text="threeAxis">氣溫、AQHI 與雨量</h3><span id="complete-hours" class="subtle"></span></div>
         <div class="plot" id="weather-scatter"><canvas role="img" aria-label="氣溫、AQHI 與雨量三維散點圖" data-label="threeAxis"></canvas><div class="tooltip" hidden></div></div>
-        <label class="subtle"><span data-text="rotate">旋轉視角</span><input id="analysis-rotation" type="range" min="20" max="70" value="42"></label>
+        <label class="subtle"><span data-text="rotate">旋轉視角</span><input id="analysis-rotation" type="range" min="0" max="360" value="42"><output id="analysis-angle" for="analysis-rotation" aria-hidden="true">42°</output></label>
       </div>
     </div>
     <table id="analysis-results" aria-labelledby="analysis-title">
@@ -512,15 +513,16 @@ function drawScatter(id, rows, threeAxes = false) {
   const min = Math.floor(Math.min(...temperatures)) - 1;
   const max = Math.ceil(Math.max(...temperatures)) + 1;
   const rainMax = threeAxes ? Math.max(1, Math.ceil(Math.max(...rows.map(row => row.rain)))) : 1;
-  const left = threeAxes ? width * .38 : 42, right = width - 22, bottom = height - 54;
-  const up = height - (threeAxes ? 139 : 87);
-  const rotation = $("analysis-rotation");
-  const radians = Math.PI / 180;
-  const angle = threeAxes ? Number(rotation.value) * radians : 0;
+  const left = threeAxes ? width / 2 : 42, right = width - 22;
+  const bottom = height - (threeAxes ? 80 : 54);
+  const up = height - (threeAxes ? 148 : 87);
+  const angle = threeAxes ? (Number($("analysis-rotation").value) % 360) * Math.PI / 180 : 0;
   const sine = Math.sin(angle), cosine = Math.cos(angle);
-  const temperatureSpan = threeAxes ? (right - left) / Math.cos(Number(rotation.min) * radians) : right - left;
-  const rainSpan = threeAxes ? (left - 36) / Math.sin(Number(rotation.max) * radians) : 0;
-  const pitch = threeAxes ? Math.min(.28, 58 / Math.hypot(temperatureSpan, rainSpan)) : 0;
+  // Keep the far corner inside the plot throughout a full turn.
+  const radius = Math.max(1, width / 2 - 24);
+  const temperatureSpan = threeAxes ? radius * .84 : right - left;
+  const rainSpan = threeAxes ? radius * .53 : 0;
+  const pitch = threeAxes ? Math.min(.30, 38 / radius) : 0;
   const project = (temperature, aqhi, rain = 0) => {
     const x = temperatureSpan * (temperature - min) / (max - min);
     const z = rainSpan * rain / rainMax;
@@ -544,10 +546,14 @@ function drawScatter(id, rows, threeAxes = false) {
     line(start, project(max, aqhi), "#e1eaeb");
     label(aqhi === 11 ? "10+" : aqhi, start[0] - 7, start[1] + 4, "right");
   }
-  const tickStep = Math.max(1, Math.ceil((max - min) / (width < 380 ? 3 : 5)));
+  const temperatureAxisWidth = Math.abs(project(max, 1)[0] - origin[0]);
+  const tickCount = threeAxes ? Math.min(5, Math.max(1, Math.floor(temperatureAxisWidth / 35))) : (width < 380 ? 3 : 5);
+  const tickStep = Math.max(1, Math.ceil((max - min) / tickCount));
   for (let temperature = min; temperature <= max; temperature += tickStep) {
+    if (threeAxes && temperatureAxisWidth < 30 && temperature === min) continue;
     const [x, y] = project(temperature, 1);
-    label(temperature, x, y + 18, "center");
+    if (threeAxes && temperatureAxisWidth < 30) label(temperature, x + 8, y + 13);
+    else label(temperature, x, y + 18, "center");
   }
   line(origin, project(min, 11));
   line(origin, project(max, 1));
@@ -558,10 +564,12 @@ function drawScatter(id, rows, threeAxes = false) {
     line(origin, [x, y]);
     line([x, y], project(max, 1, rainMax), "#e1eaeb");
     line(project(max, 1), project(max, 1, rainMax), "#e1eaeb");
-    label(rainMax, x - 7, y + 4, "right");
+    const onLeft = x < left;
+    label(rainMax, x + (onLeft ? -7 : 7), y + 4, onLeft ? "right" : "left");
     const rainLabel = t("rainAxis");
     const labelWidth = ctx.measureText(rainLabel).width;
-    label(rainLabel, Math.max(4, x - 6 - labelWidth), y + 21);
+    const labelX = onLeft ? x - 6 - labelWidth : x + 6;
+    label(rainLabel, Math.max(4, Math.min(labelX, width - labelWidth - 4)), y + 21);
   }
 
   const groups = new Map();
@@ -643,7 +651,10 @@ function drawTrends() {
   drawAnalysis(station, air, temperature, rain);
 }
 select.addEventListener("change", () => selectStation(select.value));
-$("analysis-rotation").addEventListener("input", () => drawScatter("weather-scatter", completeAnalysis, true));
+$("analysis-rotation").addEventListener("input", event => {
+  $("analysis-angle").value = event.target.value + "°";
+  drawScatter("weather-scatter", completeAnalysis, true);
+});
 
 function snapshotWindow(snapshot, hours) {
   const start = Date.parse(snapshot.until) - hours * 3600_000;
