@@ -87,7 +87,7 @@
         <label><span data-text="rainfallLocation">雨量行政區</span> <select id="rainfall-location"></select></label>
       </div>
       <p id="sources" class="subtle"></p>
-      <p id="history-rain-note" class="subtle" data-text="historyRainNote" hidden>天文台公報只列出部分時段和行政區的雨量。未列出的時段留空。</p>
+      <p id="history-rain-note" class="subtle" hidden><span data-text="historyRainNote">天文台明示全港無雨的時段，各區顯示 0 mm。有雨時，只顯示天文台列出的分區讀數。</span> <a data-text="districtRainSource" href="https://www.weather.gov.hk/en/wxinfo/rainfall/rf_record.shtml">天文台分區雨量</a></p>
       <div class="chart" id="air-chart"><div class="row"><h3>AQHI</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="AQHI 時間序列" data-label="airSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
       <div class="chart" id="temp-chart"><div class="row"><h3 data-text="temperature">氣溫（°C）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="氣溫時間序列" data-label="temperatureSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
       <div class="chart" id="rain-chart"><div class="row"><h3 data-text="rainfall">分區時段最大雨量（mm）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="分區時段最大雨量時間序列" data-label="rainfallSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
@@ -112,10 +112,11 @@ const messages = {
   last30Days: ["近 30 天", "近 30 天", "Last 30 days"],
   temperatureLocation: ["氣溫測點", "气温测点", "Temperature site"],
   rainfallLocation: ["雨量行政區", "雨量行政区", "Rainfall district"],
+  districtRainSource: ["天文台分區雨量", "天文台分区雨量", "HKO district rainfall"],
   historyRainNote: [
-    "天文台公報只列出部分時段和行政區的雨量。未列出的時段留空。",
-    "天文台公报只列出部分时段和行政区的雨量。未列出的时段留空。",
-    "Weather bulletins list rainfall for selected districts and periods. Unreported readings are left blank.",
+    "天文台明示全港無雨的時段，各區顯示 0 mm。有雨時，只顯示天文台列出的分區讀數。",
+    "天文台明确记录全港无雨的时段，各区显示 0 mm。有雨时，只显示天文台列出的分区读数。",
+    "When HKO reports no rain across Hong Kong, each district shows 0 mm. During wet hours, only reported districts are shown.",
   ],
   historySources: [
     "AQHI：環保署 · 氣溫及雨量：天文台",
