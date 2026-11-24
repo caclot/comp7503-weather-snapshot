@@ -57,7 +57,7 @@
 <header>
   <div><h1 data-text="title">香港天氣與空氣質素</h1><p data-text="subtitle">香港天文台 · 環境保護署</p></div>
   <div class="controls">
-    <label for="hours"><span data-text="range">時間範圍</span> <select id="hours"><option value="24" data-text="last24">最近 24 小時</option><option value="48" data-text="last48">最近 48 小時</option><option value="72" data-text="last72">最近 72 小時</option><option value="168" data-long-range data-text="last7Days" hidden>近 7 天</option><option value="720" data-long-range data-text="last30Days" hidden>近 30 天</option></select></label>
+    <label for="hours"><span data-text="range">時間範圍</span> <select id="hours"><option value="24" data-text="last24">最近 24 小時</option><option value="36" data-text="last36">最近 36 小時</option><option value="48" data-text="last48">最近 48 小時</option><option value="72" data-text="last72">最近 72 小時</option><option value="168" data-long-range data-text="last7Days" hidden>近 7 天</option><option value="720" data-long-range data-text="last30Days" hidden>近 30 天</option></select></label>
     <label for="language"><span data-text="language">語言</span> <select id="language"><option value="zh-Hant" lang="zh-Hant">繁體中文</option><option value="zh-Hans" lang="zh-Hans">简体中文</option><option value="en" lang="en">English</option></select></label>
   </div>
 </header>
@@ -87,11 +87,12 @@
         <label><span data-text="rainfallLocation">雨量行政區</span> <select id="rainfall-location"></select></label>
       </div>
       <p id="sources" class="subtle"></p>
-      <p id="history-rain-note" class="subtle" hidden><span data-text="historyRainNote">天文台明示全港無雨的時段，各區顯示 0 mm；缺測時段留空。</span> <a data-text="districtRainSource" href="https://www.weather.gov.hk/en/wxinfo/rainfall/rf_record.shtml">天文台分區雨量</a></p>
+      <p id="history-rain-note" class="subtle" hidden><span data-text="historyRainNote">天文台明示全港無雨的時段，各區顯示 0 mm。</span> <a data-text="districtRainSource" href="https://www.weather.gov.hk/en/wxinfo/rainfall/rf_record.shtml">天文台分區雨量</a></p>
       <div class="chart" id="air-chart"><div class="row"><h3>AQHI</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="AQHI 時間序列" data-label="airSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
       <div class="chart" id="temp-chart"><div class="row"><h3 data-text="temperature">氣溫（°C）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="氣溫時間序列" data-label="temperatureSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
       <div class="chart" id="rain-chart"><div class="row"><h3 data-text="rainfall">分區時段最大雨量（mm）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="分區時段最大雨量時間序列" data-label="rainfallSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
       <p id="live-trend-hint" class="subtle" data-text="trendHint">氣溫取自最近的天文台氣溫測點，距離為直線距離。雨量取自空監站所在行政區，時段最大值不累加。橫軸為香港時間。</p>
+      <p id="rain-estimate-source" class="subtle" hidden><span data-text="rainEstimateSource">雨量缺測時使用行政區代表位置的模型估算。</span> <a href="https://open-meteo.com/en/docs/historical-forecast-api">ECMWF IFS · Open-Meteo</a></p>
     </section>
   </div>
 </main>
@@ -106,17 +107,25 @@ const messages = {
   language: ["語言", "语言", "Language"],
   range: ["時間範圍", "时间范围", "Time range"],
   last24: ["最近 24 小時", "最近 24 小时", "Last 24 hours"],
+  last36: ["最近 36 小時", "最近 36 小时", "Last 36 hours"],
   last48: ["最近 48 小時", "最近 48 小时", "Last 48 hours"],
   last72: ["最近 72 小時", "最近 72 小时", "Last 72 hours"],
   last7Days: ["近 7 天", "近 7 天", "Last 7 days"],
   last30Days: ["近 30 天", "近 30 天", "Last 30 days"],
   temperatureLocation: ["氣溫測點", "气温测点", "Temperature site"],
   rainfallLocation: ["雨量行政區", "雨量行政区", "Rainfall district"],
+  estimateReading: ["估算 {value} mm", "估算 {value} mm", "Estimated {value} mm"],
+  rainfallWithEstimates: ["分區最大雨量及估算（mm）", "分区最大雨量及估算（mm）", "District Rainfall Maxima and Estimates (mm)"],
+  rainEstimateSource: [
+    "雨量缺測時使用行政區代表位置的模型估算。",
+    "雨量缺测时使用行政区代表位置的模型估算。",
+    "Missing rainfall readings use model estimates at representative district locations.",
+  ],
   districtRainSource: ["天文台分區雨量", "天文台分区雨量", "HKO district rainfall"],
   historyRainNote: [
-    "天文台明示全港無雨的時段，各區顯示 0 mm；缺測時段留空。",
-    "天文台明确记录全港无雨的时段，各区显示 0 mm，缺测时段留空。",
-    "When HKO reports no rain across Hong Kong, each district shows 0 mm. Missing readings appear as gaps.",
+    "天文台明示全港無雨的時段，各區顯示 0 mm。",
+    "天文台明确记录全港无雨的时段，各区显示 0 mm。",
+    "When HKO reports no rain across Hong Kong, each district shows 0 mm.",
   ],
   historySources: [
     "AQHI：環保署 · 氣溫及雨量：天文台",
@@ -236,6 +245,7 @@ let latestRows = new Map();
 let pending;
 let loadFailed = false;
 let historyArchive;
+let estimateArchive;
 let historyCachedUntil = 0;
 let historyWeatherLocations;
 let selectedTemperature;
@@ -453,6 +463,25 @@ function drawTrends() {
   }));
   drawChart("temp-chart",weatherSeries("temperature",temperatureLocation,"°C"),{color:"#ac512c",connect:true});
   const rain = weatherSeries("rainfall_max", rainfallLocation, "mm");
+  const estimates = estimateArchive?.estimates?.[rainfallLocation] ?? [];
+  const reported = new Set(rain.filter(row => row.value != null).map(row => Date.parse(row.observedAt)));
+  const start = Date.parse(data.since);
+  const end = Date.parse(data.until);
+  let hasEstimates = false;
+  for (const [observedAt, value] of estimates) {
+    const observed = Date.parse(observedAt);
+    if (observed < start || observed > end || reported.has(observed)) continue;
+    rain.push({
+      observedAt, periodStart: new Date(observed - 3600_000).toISOString(),
+      value, label: t("estimateReading", { value }),
+    });
+    hasEstimates = true;
+  }
+  if (hasEstimates) rain.sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt));
+  $("rain-estimate-source").hidden = !hasEstimates;
+  const rainChart = $("rain-chart");
+  rainChart.querySelector("h3").textContent = t(hasEstimates ? "rainfallWithEstimates" : "rainfall");
+  rainChart.querySelector("canvas").setAttribute("aria-label", t(hasEstimates ? "rainfallWithEstimates" : "rainfallSeries"));
   const maxRain = Math.max(1, ...rain.map(row => row.value));
   drawChart("rain-chart", rain, {color:"#3f6fa0", bounds:[0,maxRain], connect:false});
 }
@@ -528,15 +557,17 @@ async function load() {
     const url = snapshotUrl ? snapshotUrl + "?minute=" + Math.floor(Date.now()/60_000) : "/dashboard/data?hours=" + requested;
     const now = Date.now();
     const historyUrl = longRange && new URL("rolling-history.json", snapshotUrl);
-    const [payload, archive] = await Promise.all([
+    const [payload, archive, estimates] = await Promise.all([
       readData(url, controller.signal),
       !longRange ? null : historyCachedUntil > now ? historyArchive
         : readData(historyUrl.href, controller.signal).catch(error => {
             if (!historyArchive || controller.signal.aborted) throw error;
             return historyArchive;
           }),
+      snapshotUrl ? estimateArchive ?? readData("./rainfall-estimates.json", controller.signal).catch(() => null) : null,
     ]);
     if (controller.signal.aborted) return;
+    if (estimates) estimateArchive = estimates;
     if (archive && archive !== historyArchive) {
       historyArchive = archive;
       historyCachedUntil = now + 3600_000;
