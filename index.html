@@ -25,6 +25,9 @@
   select { padding:7px 9px; font:inherit; background:#fff; color:var(--ink); border:1px solid #b3c6cc; border-radius:7px }
   .controls { display:flex; flex-wrap:wrap; gap:10px 18px }
   header label { display:flex; align-items:center; gap:9px }
+  #history-locations { margin:9px 0 }
+  #history-locations label { display:flex; flex-wrap:wrap; align-items:center; gap:6px }
+  #history-locations select { max-width:100% }
   #map { position:relative; height:clamp(260px,34vw,425px); border-radius:9px; background:#e6f1f4; overflow:hidden; margin:12px 0 7px }
   canvas { display:block; width:100%; height:100% }
   .marker { position:absolute; transform:translate(-50%,-50%); padding:0; width:23px; height:23px; border-radius:50%; border:1px solid white; background:var(--risk); color:white; font:bold 11px system-ui; cursor:pointer; box-shadow:0 1px 3px #15374860 }
@@ -54,7 +57,7 @@
 <header>
   <div><h1 data-text="title">香港天氣與空氣質素</h1><p data-text="subtitle">香港天文台 · 環境保護署</p></div>
   <div class="controls">
-    <label for="hours"><span data-text="range">時間範圍</span> <select id="hours"><option value="24" data-text="last24">最近 24 小時</option><option value="48" data-text="last48">最近 48 小時</option><option value="72" data-text="last72">最近 72 小時</option></select></label>
+    <label for="hours"><span data-text="range">時間範圍</span> <select id="hours"><option value="24" data-text="last24">最近 24 小時</option><option value="48" data-text="last48">最近 48 小時</option><option value="72" data-text="last72">最近 72 小時</option><option value="history" data-text="archiveRange" hidden>30 日官方歷史資料</option></select></label>
     <label for="language"><span data-text="language">語言</span> <select id="language"><option value="zh-Hant" lang="zh-Hant">繁體中文</option><option value="zh-Hans" lang="zh-Hans">简体中文</option><option value="en" lang="en">English</option></select></label>
   </div>
 </header>
@@ -79,11 +82,16 @@
     </div>
     <section aria-labelledby="trends-title">
       <div class="top"><h2 id="trends-title" data-text="trends">觀測趨勢</h2><select id="station-select" aria-label="選擇監測站" data-label="selectStation"></select></div>
+      <div id="history-locations" class="controls" hidden>
+        <label><span data-text="temperatureLocation">氣溫測點</span> <select id="temperature-location"></select></label>
+        <label><span data-text="rainfallLocation">雨量行政區</span> <select id="rainfall-location"></select></label>
+      </div>
       <p id="sources" class="subtle"></p>
+      <p id="history-rain-note" class="subtle" data-text="historyRainNote" hidden>歷史公報只列出部分行政區的雨量。未列出的時段留空。</p>
       <div class="chart" id="air-chart"><div class="row"><h3>AQHI</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="AQHI 時間序列" data-label="airSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
       <div class="chart" id="temp-chart"><div class="row"><h3 data-text="temperature">氣溫（°C）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="氣溫時間序列" data-label="temperatureSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
       <div class="chart" id="rain-chart"><div class="row"><h3 data-text="rainfall">分區時段最大雨量（mm）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="分區時段最大雨量時間序列" data-label="rainfallSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
-      <p class="subtle" data-text="trendHint">氣溫取自最近的天文台氣溫測點，距離為直線距離。雨量取自空監站所在行政區，時段最大值不累加。橫軸為香港時間。</p>
+      <p id="live-trend-hint" class="subtle" data-text="trendHint">氣溫取自最近的天文台氣溫測點，距離為直線距離。雨量取自空監站所在行政區，時段最大值不累加。橫軸為香港時間。</p>
     </section>
   </div>
 </main>
@@ -100,6 +108,20 @@ const messages = {
   last24: ["最近 24 小時", "最近 24 小时", "Last 24 hours"],
   last48: ["最近 48 小時", "最近 48 小时", "Last 48 hours"],
   last72: ["最近 72 小時", "最近 72 小时", "Last 72 hours"],
+  archiveRange: ["30 日官方歷史資料", "30 天官方历史数据", "30-day official archive"],
+  archiveWindow: ["官方歷史資料 · {interval}（香港時間）", "官方历史数据 · {interval}（香港时间）", "Official archive · {interval} (Hong Kong time)"],
+  temperatureLocation: ["氣溫測點", "气温测点", "Temperature site"],
+  rainfallLocation: ["雨量行政區", "雨量行政区", "Rainfall district"],
+  historyRainNote: [
+    "歷史公報只列出部分行政區的雨量。未列出的時段留空。",
+    "历史公报只列出部分行政区的雨量。未列出的时段留空。",
+    "Historical bulletins list rainfall for selected districts and periods. Unreported readings are left blank.",
+  ],
+  historySources: [
+    "AQHI：環保署歷史資料 · 氣溫及雨量：天文台歷史天氣公報",
+    "AQHI：环保署历史数据 · 气温及雨量：天文台历史天气公报",
+    "AQHI: EPD historical data · Temperature and rainfall: HKO archived weather bulletins",
+  ],
   loading: ["正在讀取資料…", "正在读取数据…", "Loading data…"],
   map: ["AQHI 監測站地圖", "AQHI 监测站地图", "AQHI Station Map"],
   risk: ["AQHI 風險級別", "AQHI 风险级别", "AQHI risk levels"],
@@ -166,10 +188,15 @@ const locationNames = {
   "Central & Western District": ["中西區", "中西区"], "Southern District": ["南區", "南区"],
   "Eastern District": ["東區", "东区"], "Kwai Tsing": ["葵青", "葵青"], "Tsuen Wan": ["荃灣", "荃湾"],
   "Sai Kung": ["西貢", "西贡"], "Yuen Long": ["元朗", "元朗"], "Islands District": ["離島區", "离岛区"],
+  "Lau Fau Shan": ["流浮山", "流浮山"], "Cheung Chau": ["長洲", "长洲"],
+  "Tsing Yi": ["青衣", "青衣"], "Shek Kong": ["石崗", "石岗"], "Tsuen Wan Ho Koon": ["荃灣可觀", "荃湾可观"],
+  "Kowloon City": ["九龍城", "九龙城"], "Wong Tai Sin": ["黃大仙", "黄大仙"], "Stanley": ["赤柱", "赤柱"],
+  "Kai Tak Runway Park": ["啟德跑道公園", "启德跑道公园"], "Hong Kong Observatory": ["香港天文台", "香港天文台"],
   "North District": ["北區", "北区"], "Wan Chai": ["灣仔", "湾仔"], "Yau Tsim Mong": ["油尖旺", "油尖旺"],
 };
 let languageIndex = 0;
 let hk;
+let hkDate;
 const t = (key, values) => messages[key][languageIndex].replace(/\{(\w+)\}/g, (_, name) => values[name]);
 const time = value => hk.format(new Date(value));
 const interval = (start, end) => t("interval", { start: time(start), end: time(end) });
@@ -207,10 +234,17 @@ let stationId = "12";
 let latestRows = new Map();
 let pending;
 let loadFailed = false;
+let historyArchive;
+let historyWeatherLocations;
+let selectedTemperature;
+let selectedRainfall;
 const markerNodes = new Map();
 const tableBody = $("station-rows");
 const select = $("station-select");
 const hours = $("hours");
+const temperatureSelect = $("temperature-location");
+const rainfallSelect = $("rainfall-location");
+hours.querySelector('[value="history"]').hidden = !snapshotUrl;
 const map = $("map");
 const mapCanvas = map.querySelector("canvas");
 
@@ -223,6 +257,7 @@ function applyLanguage(requested) {
   hk = new Intl.DateTimeFormat(language + "-HK", {
     timeZone:"Asia/Hong_Kong", month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit", hourCycle:"h23",
   });
+  hkDate = new Intl.DateTimeFormat(language + "-HK", { timeZone:"Asia/Hong_Kong", month:"numeric", day:"numeric" });
   for (const item of document.querySelectorAll("[data-text]")) item.textContent = t(item.dataset.text);
   for (const item of document.querySelectorAll("[data-label]")) item.setAttribute("aria-label", t(item.dataset.label));
   $("legend").replaceChildren();
@@ -240,6 +275,10 @@ function isRoadside(station) {
   return latestRows.get(station.id)?.payload.stationType === "roadside" || station.type === "roadside";
 }
 function selectStation(id) {
+  if (id !== stationId) {
+    selectedTemperature = undefined;
+    selectedRainfall = undefined;
+  }
   stationId = id;
   select.value = id;
   for (const button of document.querySelectorAll("button[data-station]")) {
@@ -350,7 +389,8 @@ function drawChart(id, values, config) {
   }
   const xTicks = width > 415 ? [0,1/3,2/3,1] : [0,0.5,1];
   for (const part of xTicks) {
-    const label=time(start+part*(end-start));
+    const tickTime = start + part * (end - start);
+    const label = data.archive ? hkDate.format(tickTime) : time(tickTime);
     const point=left+part*(right-left);
     ctx.fillText(label,Math.max(1,Math.min(point-ctx.measureText(label).width/2,width-ctx.measureText(label).width-1)),height-4);
   }
@@ -385,7 +425,16 @@ function drawTrends() {
   if (!data) return;
   const station = data.stations.find(item => item.id === stationId);
   const pair = data.pairs[stationId];
-  $("sources").textContent = t("sources", {
+  const temperatureLocation = data.archive ? selectedTemperature ?? pair.temperature : pair.temperature;
+  const rainfallLocation = data.archive ? selectedRainfall ?? pair.rainfall : pair.rainfall;
+  $("history-locations").hidden = !data.archive;
+  $("history-rain-note").hidden = !data.archive;
+  $("live-trend-hint").hidden = Boolean(data.archive);
+  if (data.archive) {
+    updateLocations(temperatureSelect, historyWeatherLocations.temperature, temperatureLocation);
+    updateLocations(rainfallSelect, historyWeatherLocations.rainfall_max, rainfallLocation);
+  }
+  $("sources").textContent = data.archive ? t("historySources") : t("sources", {
     station: stationName(station),
     temperature: locationName(pair.temperature),
     km: pair.temperatureKm.toFixed(1),
@@ -398,12 +447,24 @@ function drawTrends() {
   const weatherSeries = (metric, location, unit) => data.weather.filter(row => row.payload.metric===metric && row.payload.location===location).map(row => ({
     observedAt:row.observedAt, periodStart:row.periodStart, value:row.payload.value, label:row.payload.value+" "+unit,
   }));
-  drawChart("temp-chart",weatherSeries("temperature",pair.temperature,"°C"),{color:"#ac512c",connect:true});
-  const rain=weatherSeries("rainfall_max",pair.rainfall,"mm");
+  drawChart("temp-chart",weatherSeries("temperature",temperatureLocation,"°C"),{color:"#ac512c",connect:true});
+  const rain=weatherSeries("rainfall_max",rainfallLocation,"mm");
   const maxRain=Math.max(1,...rain.map(row => row.value));
   drawChart("rain-chart",rain,{color:"#3f6fa0",bounds:[0,maxRain],connect:false});
 }
+function updateLocations(control, locations, selected) {
+  control.replaceChildren();
+  for (const location of locations) {
+    const option = element("option", locationName(location));
+    option.value = location;
+    control.append(option);
+  }
+  control.value = selected;
+}
+
 select.addEventListener("change", () => selectStation(select.value));
+temperatureSelect.addEventListener("change", () => { selectedTemperature = temperatureSelect.value; drawTrends(); });
+rainfallSelect.addEventListener("change", () => { selectedRainfall = rainfallSelect.value; drawTrends(); });
 
 function snapshotWindow(snapshot, hours) {
   const start = Date.parse(snapshot.until) - hours * 3600_000;
@@ -422,7 +483,10 @@ function renderNotice() {
   if (loadFailed) {
     notice = t("retry") + (timestamp ? " " + t("stale", timestamp) : "");
   } else if (data) {
-    notice = t("window", { interval: interval(data.since, data.until) });
+    const range = data.archive
+      ? t("interval", { start: hkDate.format(Date.parse(data.since)), end: hkDate.format(Date.parse(data.until) - 1) })
+      : interval(data.since, data.until);
+    notice = t(data.archive ? "archiveWindow" : "window", { interval: range });
   }
   $("notice").textContent = notice;
 }
@@ -435,19 +499,35 @@ function render() {
   selectStation(stationId);
 }
 
+async function readData(url, signal) {
+  const response = await fetch(url, { signal, cache:"no-store" });
+  if (!response.ok) throw new Error("HTTP " + response.status);
+  return response.json();
+}
+
 async function load() {
   pending?.abort();
   const controller=new AbortController();
   pending=controller;
   try {
-    const url = snapshotUrl ? snapshotUrl+"?minute="+Math.floor(Date.now()/60_000) : "/dashboard/data?hours="+hours.value;
-    const response=await fetch(url,{signal:controller.signal,cache:"no-store"});
-    if (!response.ok) throw new Error("HTTP "+response.status);
-    const payload=await response.json();
+    const requested = hours.value;
+    const archived = snapshotUrl && requested === "history";
+    const url = snapshotUrl ? snapshotUrl + "?minute=" + Math.floor(Date.now()/60_000) : "/dashboard/data?hours=" + requested;
+    const [payload, archive] = await Promise.all([
+      readData(url, controller.signal),
+      archived ? historyArchive ?? readData("./history.json", controller.signal) : null,
+    ]);
     if (controller.signal.aborted) return;
-    data=snapshotUrl ? snapshotWindow(payload, Number(hours.value)) : payload;
-    const newest=data.air.at(-1)?.observedAt;
-    latestRows=new Map(data.air.filter(row => row.observedAt===newest).map(row => [row.payload.stationId,row]));
+    if (archive) {
+      historyArchive = archive;
+      historyWeatherLocations ??= Object.fromEntries(["temperature", "rainfall_max"].map(metric => [
+        metric, [...new Set(archive.weather.filter(row => row.payload.metric === metric).map(row => row.payload.location))].sort(),
+      ]));
+    }
+    data = archive ? { ...payload, ...archive, publishedAt: undefined, archive: true }
+      : snapshotUrl ? snapshotWindow(payload, Number(requested)) : payload;
+    const newest=payload.air.at(-1)?.observedAt;
+    latestRows=new Map(payload.air.filter(row => row.observedAt===newest).map(row => [row.payload.stationId,row]));
     loadFailed = false;
     render();
   } catch (error) {
@@ -466,7 +546,7 @@ $("language").addEventListener("change", event => {
 });
 hours.addEventListener("change",load);
 new ResizeObserver(() => { drawMap(); drawTrends(); }).observe(document.querySelector("main"));
-setInterval(load,60_000);
+setInterval(() => { if (hours.value !== "history") load(); },60_000);
 load();
 </script>
 </body>
