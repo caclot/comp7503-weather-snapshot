@@ -28,9 +28,7 @@
   #history-locations { margin:9px 0 }
   #history-locations label { display:flex; flex-wrap:wrap; align-items:center; gap:6px }
   #history-locations select { max-width:100% }
-  #rain-estimates-controls { margin:6px 0 0 }
-  #rain-estimates-controls label { display:inline-flex; align-items:center; gap:5px }
-  #rain-estimates-controls .dot { border:2px solid #a0520c; background:none }
+  #rain-estimates-legend { margin:6px 0 0 }
   #map { position:relative; height:clamp(260px,34vw,425px); border-radius:9px; background:#e6f1f4; overflow:hidden; margin:12px 0 7px }
   canvas { display:block; width:100%; height:100% }
   .marker { position:absolute; transform:translate(-50%,-50%); padding:0; width:23px; height:23px; border-radius:50%; border:1px solid white; background:var(--risk); color:white; font:bold 11px system-ui; cursor:pointer; box-shadow:0 1px 3px #15374860 }
@@ -91,10 +89,11 @@
       </div>
       <p id="sources" class="subtle"></p>
       <p id="history-rain-note" class="subtle" hidden><span data-text="historyRainNote">天文台明示全港無雨的時段，各區顯示 0 mm。</span> <a data-text="districtRainSource" href="https://www.weather.gov.hk/en/wxinfo/rainfall/rf_record.shtml">天文台分區雨量</a></p>
-      <div id="rain-estimates-controls" class="subtle" hidden>
-        <label><input id="show-rain-estimates" type="checkbox" checked> <span data-text="showRainEstimates">顯示雨量估算</span></label>
-        <p><i class="dot" aria-hidden="true"></i> <span data-text="estimateLegend">空心點為模型估算。</span> <a href="https://open-meteo.com/en/docs/historical-forecast-api">ECMWF IFS · Open-Meteo</a></p>
-      </div>
+      <p id="rain-estimates-legend" class="subtle" hidden>
+        <i class="dot" style="--risk:#3f6fa0" aria-hidden="true"></i> <span data-text="hkoRainLegend">天文台分區雨量</span> ·
+        <i class="dot" style="--risk:#a0520c" aria-hidden="true"></i> <span data-text="estimateLegend">行政區代表位置的模型估算</span> ·
+        <a href="https://open-meteo.com/en/docs/historical-forecast-api">ECMWF IFS · Open-Meteo</a>
+      </p>
       <div class="chart" id="air-chart"><div class="row"><h3>AQHI</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="AQHI 時間序列" data-label="airSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
       <div class="chart" id="temp-chart"><div class="row"><h3 data-text="temperature">氣溫（°C）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="氣溫時間序列" data-label="temperatureSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
       <div class="chart" id="rain-chart"><div class="row"><h3 data-text="rainfall">分區時段最大雨量（mm）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="分區時段最大雨量時間序列" data-label="rainfallSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
@@ -119,11 +118,11 @@ const messages = {
   last30Days: ["近 30 天", "近 30 天", "Last 30 days"],
   temperatureLocation: ["氣溫測點", "气温测点", "Temperature site"],
   rainfallLocation: ["雨量行政區", "雨量行政区", "Rainfall district"],
-  showRainEstimates: ["顯示雨量估算", "显示雨量估算", "Show rainfall estimates"],
+  hkoRainLegend: ["天文台分區雨量", "天文台分区雨量", "HKO district rainfall"],
   estimateLegend: [
-    "空心點為行政區代表位置的模型估算。實心點為天文台分區雨量。",
-    "空心点为行政区代表位置的模型估算。实心点为天文台分区雨量。",
-    "Hollow points show model estimates at representative district locations. Solid points show HKO district rainfall.",
+    "行政區代表位置的模型估算",
+    "行政区代表位置的模型估算",
+    "Model estimates at representative district locations",
   ],
   estimateReading: ["估算 {value} mm", "估算 {value} mm", "Estimated {value} mm"],
   rainfallWithEstimates: ["分區最大雨量及估算（mm）", "分区最大雨量及估算（mm）", "District Rainfall Maxima and Estimates (mm)"],
@@ -262,7 +261,6 @@ const select = $("station-select");
 const hours = $("hours");
 const temperatureSelect = $("temperature-location");
 const rainfallSelect = $("rainfall-location");
-const showRainEstimates = $("show-rain-estimates");
 for (const option of hours.querySelectorAll("[data-long-range]")) option.hidden = !snapshotUrl;
 const map = $("map");
 const mapCanvas = map.querySelector("canvas");
@@ -423,17 +421,10 @@ function drawChart(id, values, config) {
     if (config.connect && previous && t-Date.parse(previous.observedAt) <= 90*60_000) {
       ctx.beginPath(); ctx.moveTo(x(Date.parse(previous.observedAt)),y(previous.value)); ctx.lineTo(x(t),y(row.value)); ctx.stroke();
     }
+    ctx.fillStyle = row.estimated ? "#a0520c" : config.color;
     ctx.beginPath();
-    ctx.arc(x(t), y(row.value), row.estimated ? 3.1 : 2.4, 0, Math.PI * 2);
-    if (row.estimated) {
-      ctx.save();
-      ctx.strokeStyle = "#a0520c";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.restore();
-    } else {
-      ctx.fill();
-    }
+    ctx.arc(x(t), y(row.value), 2.4, 0, Math.PI * 2);
+    ctx.fill();
     previous=row;
   }
   canvas.onpointermove = event => {
@@ -479,9 +470,7 @@ function drawTrends() {
   drawChart("temp-chart",weatherSeries("temperature",temperatureLocation,"°C"),{color:"#ac512c",connect:true});
   const rain = weatherSeries("rainfall_max", rainfallLocation, "mm");
   const estimates = data.archive && estimateArchive?.estimates[rainfallLocation];
-  $("rain-estimates-controls").hidden = !estimates;
-  const showEstimates = estimates && showRainEstimates.checked;
-  if (showEstimates) {
+  if (estimates) {
     const reported = new Set(rain.filter(row => row.value != null).map(row => Date.parse(row.observedAt)));
     const start = Date.parse(data.since);
     const end = Date.parse(data.until);
@@ -495,7 +484,9 @@ function drawTrends() {
     }
     rain.sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt));
   }
-  $("rain-chart").querySelector("h3").textContent = t(rain.some(row => row.estimated) ? "rainfallWithEstimates" : "rainfall");
+  const hasEstimates = rain.some(row => row.estimated);
+  $("rain-estimates-legend").hidden = !hasEstimates;
+  $("rain-chart").querySelector("h3").textContent = t(hasEstimates ? "rainfallWithEstimates" : "rainfall");
   const maxRain = Math.max(1, ...rain.map(row => row.value));
   drawChart("rain-chart", rain, {color:"#3f6fa0", bounds:[0,maxRain], connect:false});
 }
@@ -512,7 +503,6 @@ function updateLocations(control, locations, selected) {
 select.addEventListener("change", () => selectStation(select.value));
 temperatureSelect.addEventListener("change", () => { selectedTemperature = temperatureSelect.value; drawTrends(); });
 rainfallSelect.addEventListener("change", () => { selectedRainfall = rainfallSelect.value; drawTrends(); });
-showRainEstimates.addEventListener("change", drawTrends);
 
 function snapshotWindow(snapshot, hours) {
   const start = Date.parse(snapshot.until) - hours * 3600_000;
