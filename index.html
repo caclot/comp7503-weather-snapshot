@@ -512,14 +512,23 @@ function drawScatter(id, rows, threeAxes = false) {
   const min = Math.floor(Math.min(...temperatures)) - 1;
   const max = Math.ceil(Math.max(...temperatures)) + 1;
   const rainMax = threeAxes ? Math.max(1, Math.ceil(Math.max(...rows.map(row => row.rain)))) : 1;
-  const depth = threeAxes ? Math.min(91, width * .23) : 0;
-  const left = 42 + depth, right = width - 22, bottom = height - 54;
-  const up = height - (threeAxes ? 121 : 87);
-  const angle = Number($("analysis-rotation").value) * Math.PI / 180;
-  const project = (temperature, aqhi, rain = 0) => [
-    left + (right - left) * (temperature - min) / (max - min) - depth * Math.sin(angle) * rain / rainMax,
-    bottom - up * (aqhi - 1) / 10 - depth * Math.cos(angle) * rain / rainMax,
-  ];
+  const left = threeAxes ? width * .38 : 42, right = width - 22, bottom = height - 54;
+  const up = height - (threeAxes ? 139 : 87);
+  const rotation = $("analysis-rotation");
+  const radians = Math.PI / 180;
+  const angle = threeAxes ? Number(rotation.value) * radians : 0;
+  const sine = Math.sin(angle), cosine = Math.cos(angle);
+  const temperatureSpan = threeAxes ? (right - left) / Math.cos(Number(rotation.min) * radians) : right - left;
+  const rainSpan = threeAxes ? (left - 36) / Math.sin(Number(rotation.max) * radians) : 0;
+  const pitch = threeAxes ? Math.min(.28, 58 / Math.hypot(temperatureSpan, rainSpan)) : 0;
+  const project = (temperature, aqhi, rain = 0) => {
+    const x = temperatureSpan * (temperature - min) / (max - min);
+    const z = rainSpan * rain / rainMax;
+    return [
+      left + x * cosine - z * sine,
+      bottom - up * (aqhi - 1) / 10 - pitch * (x * sine + z * cosine),
+    ];
+  };
   const line = (start, end, color = "#94a8ad") => {
     ctx.strokeStyle = color;
     ctx.beginPath(); ctx.moveTo(...start); ctx.lineTo(...end); ctx.stroke();
@@ -543,7 +552,7 @@ function drawScatter(id, rows, threeAxes = false) {
   line(origin, project(min, 11));
   line(origin, project(max, 1));
   label("AQHI", left, bottom - up - 10, "center");
-  label(t("temperature"), (left + right) / 2, height - 8, "center");
+  label(t("temperature"), project((min + max) / 2, 1)[0], height - 8, "center");
   if (threeAxes) {
     const [x, y] = project(min, 1, rainMax);
     line(origin, [x, y]);
