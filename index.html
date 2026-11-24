@@ -28,7 +28,6 @@
   #history-locations { margin:9px 0 }
   #history-locations label { display:flex; flex-wrap:wrap; align-items:center; gap:6px }
   #history-locations select { max-width:100% }
-  #rain-estimates-legend { margin:6px 0 0 }
   #map { position:relative; height:clamp(260px,34vw,425px); border-radius:9px; background:#e6f1f4; overflow:hidden; margin:12px 0 7px }
   canvas { display:block; width:100%; height:100% }
   .marker { position:absolute; transform:translate(-50%,-50%); padding:0; width:23px; height:23px; border-radius:50%; border:1px solid white; background:var(--risk); color:white; font:bold 11px system-ui; cursor:pointer; box-shadow:0 1px 3px #15374860 }
@@ -88,12 +87,7 @@
         <label><span data-text="rainfallLocation">雨量行政區</span> <select id="rainfall-location"></select></label>
       </div>
       <p id="sources" class="subtle"></p>
-      <p id="history-rain-note" class="subtle" hidden><span data-text="historyRainNote">天文台明示全港無雨的時段，各區顯示 0 mm。</span> <a data-text="districtRainSource" href="https://www.weather.gov.hk/en/wxinfo/rainfall/rf_record.shtml">天文台分區雨量</a></p>
-      <p id="rain-estimates-legend" class="subtle" hidden>
-        <i class="dot" style="--risk:#3f6fa0" aria-hidden="true"></i> <span data-text="hkoRainLegend">天文台分區雨量</span> ·
-        <i class="dot" style="--risk:#a0520c" aria-hidden="true"></i> <span data-text="estimateLegend">行政區代表位置的模型估算</span> ·
-        <a href="https://open-meteo.com/en/docs/historical-forecast-api">ECMWF IFS · Open-Meteo</a>
-      </p>
+      <p id="history-rain-note" class="subtle" hidden><span data-text="historyRainNote">天文台明示全港無雨的時段，各區顯示 0 mm；缺測時段留空。</span> <a data-text="districtRainSource" href="https://www.weather.gov.hk/en/wxinfo/rainfall/rf_record.shtml">天文台分區雨量</a></p>
       <div class="chart" id="air-chart"><div class="row"><h3>AQHI</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="AQHI 時間序列" data-label="airSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
       <div class="chart" id="temp-chart"><div class="row"><h3 data-text="temperature">氣溫（°C）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="氣溫時間序列" data-label="temperatureSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
       <div class="chart" id="rain-chart"><div class="row"><h3 data-text="rainfall">分區時段最大雨量（mm）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="分區時段最大雨量時間序列" data-label="rainfallSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
@@ -118,19 +112,11 @@ const messages = {
   last30Days: ["近 30 天", "近 30 天", "Last 30 days"],
   temperatureLocation: ["氣溫測點", "气温测点", "Temperature site"],
   rainfallLocation: ["雨量行政區", "雨量行政区", "Rainfall district"],
-  hkoRainLegend: ["天文台分區雨量", "天文台分区雨量", "HKO district rainfall"],
-  estimateLegend: [
-    "行政區代表位置的模型估算",
-    "行政区代表位置的模型估算",
-    "Model estimates at representative district locations",
-  ],
-  estimateReading: ["估算 {value} mm", "估算 {value} mm", "Estimated {value} mm"],
-  rainfallWithEstimates: ["分區最大雨量及估算（mm）", "分区最大雨量及估算（mm）", "District Rainfall Maxima and Estimates (mm)"],
   districtRainSource: ["天文台分區雨量", "天文台分区雨量", "HKO district rainfall"],
   historyRainNote: [
-    "天文台明示全港無雨的時段，各區顯示 0 mm。",
-    "天文台明确记录全港无雨的时段，各区显示 0 mm。",
-    "When HKO reports no rain across Hong Kong, each district shows 0 mm.",
+    "天文台明示全港無雨的時段，各區顯示 0 mm；缺測時段留空。",
+    "天文台明确记录全港无雨的时段，各区显示 0 mm，缺测时段留空。",
+    "When HKO reports no rain across Hong Kong, each district shows 0 mm. Missing readings appear as gaps.",
   ],
   historySources: [
     "AQHI：環保署 · 氣溫及雨量：天文台",
@@ -250,7 +236,6 @@ let latestRows = new Map();
 let pending;
 let loadFailed = false;
 let historyArchive;
-let estimateArchive;
 let historyCachedUntil = 0;
 let historyWeatherLocations;
 let selectedTemperature;
@@ -421,7 +406,6 @@ function drawChart(id, values, config) {
     if (config.connect && previous && t-Date.parse(previous.observedAt) <= 90*60_000) {
       ctx.beginPath(); ctx.moveTo(x(Date.parse(previous.observedAt)),y(previous.value)); ctx.lineTo(x(t),y(row.value)); ctx.stroke();
     }
-    ctx.fillStyle = row.estimated ? "#a0520c" : config.color;
     ctx.beginPath();
     ctx.arc(x(t), y(row.value), 2.4, 0, Math.PI * 2);
     ctx.fill();
@@ -469,24 +453,6 @@ function drawTrends() {
   }));
   drawChart("temp-chart",weatherSeries("temperature",temperatureLocation,"°C"),{color:"#ac512c",connect:true});
   const rain = weatherSeries("rainfall_max", rainfallLocation, "mm");
-  const estimates = data.archive && estimateArchive?.estimates[rainfallLocation];
-  if (estimates) {
-    const reported = new Set(rain.filter(row => row.value != null).map(row => Date.parse(row.observedAt)));
-    const start = Date.parse(data.since);
-    const end = Date.parse(data.until);
-    for (const [observedAt, value] of estimates) {
-      const observed = Date.parse(observedAt);
-      if (observed < start || observed > end || reported.has(observed)) continue;
-      rain.push({
-        observedAt, periodStart: new Date(observed - 3600_000).toISOString(),
-        value, label: t("estimateReading", { value }), estimated: true,
-      });
-    }
-    rain.sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt));
-  }
-  const hasEstimates = rain.some(row => row.estimated);
-  $("rain-estimates-legend").hidden = !hasEstimates;
-  $("rain-chart").querySelector("h3").textContent = t(hasEstimates ? "rainfallWithEstimates" : "rainfall");
   const maxRain = Math.max(1, ...rain.map(row => row.value));
   drawChart("rain-chart", rain, {color:"#3f6fa0", bounds:[0,maxRain], connect:false});
 }
@@ -562,17 +528,15 @@ async function load() {
     const url = snapshotUrl ? snapshotUrl + "?minute=" + Math.floor(Date.now()/60_000) : "/dashboard/data?hours=" + requested;
     const now = Date.now();
     const historyUrl = longRange && new URL("rolling-history.json", snapshotUrl);
-    const [payload, archive, estimates] = await Promise.all([
+    const [payload, archive] = await Promise.all([
       readData(url, controller.signal),
       !longRange ? null : historyCachedUntil > now ? historyArchive
         : readData(historyUrl.href, controller.signal).catch(error => {
             if (!historyArchive || controller.signal.aborted) throw error;
             return historyArchive;
           }),
-      longRange ? estimateArchive ?? readData("./rainfall-estimates.json", controller.signal).catch(() => null) : null,
     ]);
     if (controller.signal.aborted) return;
-    if (estimates) estimateArchive = estimates;
     if (archive && archive !== historyArchive) {
       historyArchive = archive;
       historyCachedUntil = now + 3600_000;
