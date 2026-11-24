@@ -23,6 +23,7 @@
   .stack { display:grid; gap:16px }
   #notice { min-height:23px; margin:0 0 9px; color:var(--muted) }
   select { padding:7px 9px; font:inherit; background:#fff; color:var(--ink); border:1px solid #b3c6cc; border-radius:7px }
+  .controls { display:flex; flex-wrap:wrap; gap:10px 18px }
   header label { display:flex; align-items:center; gap:9px }
   #map { position:relative; height:clamp(260px,34vw,425px); border-radius:9px; background:#e6f1f4; overflow:hidden; margin:12px 0 7px }
   canvas { display:block; width:100%; height:100% }
@@ -51,35 +52,38 @@
 </head>
 <body>
 <header>
-  <div><h1>香港天氣與空氣質素</h1><p>香港天文台 · 環境保護署</p></div>
-  <label for="hours">時間範圍 <select id="hours"><option value="24">最近 24 小時</option><option value="48">最近 48 小時</option><option value="72">最近 72 小時</option></select></label>
+  <div><h1 data-text="title">香港天氣與空氣質素</h1><p data-text="subtitle">香港天文台 · 環境保護署</p></div>
+  <div class="controls">
+    <label for="hours"><span data-text="range">時間範圍</span> <select id="hours"><option value="24" data-text="last24">最近 24 小時</option><option value="48" data-text="last48">最近 48 小時</option><option value="72" data-text="last72">最近 72 小時</option></select></label>
+    <label for="language"><span data-text="language">語言</span> <select id="language"><option value="zh-Hant" lang="zh-Hant">繁體中文</option><option value="zh-Hans" lang="zh-Hans">简体中文</option><option value="en" lang="en">English</option></select></label>
+  </div>
 </header>
 <main>
   <p id="notice" role="status">正在讀取資料…</p>
   <div class="grid">
     <div class="stack">
       <section aria-labelledby="map-title">
-        <div class="top"><h2 id="map-title">AQHI 監測站地圖</h2><span id="coverage" class="subtle"></span></div>
+        <div class="top"><h2 id="map-title" data-text="map">AQHI 監測站地圖</h2><span id="coverage" class="subtle"></span></div>
         <div id="map"><canvas aria-hidden="true"></canvas></div>
-        <div id="legend" class="legend" aria-label="AQHI 風險級別"></div>
-        <p class="subtle">圓形為一般站，方形為路邊站。點選任何一站查看 AQHI、氣溫和雨量。</p>
-        <p class="subtle">地圖資料：<a href="https://portal.csdi.gov.hk/csdi-webpage/dataset/epd_rcd_1629267205214_40635">環保署監測站</a> · <a href="https://portal.csdi.gov.hk/csdi-webpage/dataset/had_rcd_1634523272907_75218">民政事務總署地界</a></p>
+        <div id="legend" class="legend" aria-label="AQHI 風險級別" data-label="risk"></div>
+        <p class="subtle" data-text="mapHint">圓形為一般站，方形為路邊站。點選任何一站查看 AQHI、氣溫和雨量。</p>
+        <p class="subtle"><span data-text="mapData">地圖資料：</span><a data-text="epdSource" href="https://portal.csdi.gov.hk/csdi-webpage/dataset/epd_rcd_1629267205214_40635">環保署監測站</a> · <a data-text="boundaries" href="https://portal.csdi.gov.hk/csdi-webpage/dataset/had_rcd_1634523272907_75218">民政事務總署地界</a></p>
       </section>
       <section>
-        <div class="top"><h2>各站最新讀數</h2><span id="latest" class="subtle"></span></div>
+        <div class="top"><h2 data-text="latest">各站最新讀數</h2><span id="latest" class="subtle"></span></div>
         <div id="stations"><table>
-          <thead><tr><th scope="col">站點</th><th scope="col">類型</th><th scope="col">AQHI</th></tr></thead>
+          <thead><tr><th scope="col" data-text="station">站點</th><th scope="col" data-text="type">類型</th><th scope="col">AQHI</th></tr></thead>
           <tbody id="station-rows"></tbody>
         </table></div>
       </section>
     </div>
     <section aria-labelledby="trends-title">
-      <div class="top"><h2 id="trends-title">觀測趨勢</h2><select id="station-select" aria-label="選擇監測站"></select></div>
+      <div class="top"><h2 id="trends-title" data-text="trends">觀測趨勢</h2><select id="station-select" aria-label="選擇監測站" data-label="selectStation"></select></div>
       <p id="sources" class="subtle"></p>
-      <div class="chart" id="air-chart"><div class="row"><h3>AQHI</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="AQHI 時間序列" role="img"></canvas><div class="tooltip" hidden></div></div></div>
-      <div class="chart" id="temp-chart"><div class="row"><h3>氣溫（°C）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="氣溫時間序列" role="img"></canvas><div class="tooltip" hidden></div></div></div>
-      <div class="chart" id="rain-chart"><div class="row"><h3>分區時段最大雨量（mm）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="分區時段最大雨量時間序列" role="img"></canvas><div class="tooltip" hidden></div></div></div>
-      <p class="subtle">氣溫取自最近的天文台氣溫測點，距離為直線距離。雨量取自空監站所在行政區，時段最大值不累加。橫軸為香港時間。</p>
+      <div class="chart" id="air-chart"><div class="row"><h3>AQHI</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="AQHI 時間序列" data-label="airSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
+      <div class="chart" id="temp-chart"><div class="row"><h3 data-text="temperature">氣溫（°C）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="氣溫時間序列" data-label="temperatureSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
+      <div class="chart" id="rain-chart"><div class="row"><h3 data-text="rainfall">分區時段最大雨量（mm）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="分區時段最大雨量時間序列" data-label="rainfallSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
+      <p class="subtle" data-text="trendHint">氣溫取自最近的天文台氣溫測點，距離為直線距離。雨量取自空監站所在行政區，時段最大值不累加。橫軸為香港時間。</p>
     </section>
   </div>
 </main>
@@ -87,11 +91,94 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const snapshotUrl = document.querySelector('meta[name="dashboard-snapshot"]').content;
-const hk = new Intl.DateTimeFormat("zh-HK", { timeZone:"Asia/Hong_Kong", month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit", hourCycle:"h23" });
+const languages = ["zh-Hant", "zh-Hans", "en"];
+const messages = {
+  title: ["香港天氣與空氣質素", "香港天气与空气质量", "Hong Kong Weather and Air Quality"],
+  subtitle: ["香港天文台 · 環境保護署", "香港天文台 · 环境保护署", "Hong Kong Observatory · Environmental Protection Department"],
+  language: ["語言", "语言", "Language"],
+  range: ["時間範圍", "时间范围", "Time range"],
+  last24: ["最近 24 小時", "最近 24 小时", "Last 24 hours"],
+  last48: ["最近 48 小時", "最近 48 小时", "Last 48 hours"],
+  last72: ["最近 72 小時", "最近 72 小时", "Last 72 hours"],
+  loading: ["正在讀取資料…", "正在读取数据…", "Loading data…"],
+  map: ["AQHI 監測站地圖", "AQHI 监测站地图", "AQHI Station Map"],
+  risk: ["AQHI 風險級別", "AQHI 风险级别", "AQHI risk levels"],
+  mapHint: [
+    "圓形為一般站，方形為路邊站。點選任何一站查看 AQHI、氣溫和雨量。",
+    "圆形为一般站，方形为路边站。点击任一站查看 AQHI、气温和雨量。",
+    "Circles show general stations and squares show roadside stations. Select a station for AQHI, temperature and rainfall.",
+  ],
+  mapData: ["地圖資料：", "地图数据：", "Map data: "],
+  epdSource: ["環保署監測站", "环保署监测站", "EPD monitoring stations"],
+  boundaries: ["民政事務總署地界", "民政事务总署地界", "Home Affairs Department boundaries"],
+  latest: ["各站最新讀數", "各站最新读数", "Latest Station Readings"],
+  station: ["站點", "站点", "Station"],
+  type: ["類型", "类型", "Type"],
+  trends: ["觀測趨勢", "观测趋势", "Observation Trends"],
+  selectStation: ["選擇監測站", "选择监测站", "Select a monitoring station"],
+  temperature: ["氣溫（°C）", "气温（°C）", "Temperature (°C)"],
+  rainfall: ["分區時段最大雨量（mm）", "分区时段最大雨量（mm）", "District Maximum Rainfall per Period (mm)"],
+  airSeries: ["AQHI 時間序列", "AQHI 时间序列", "AQHI time series"],
+  temperatureSeries: ["氣溫時間序列", "气温时间序列", "Temperature time series"],
+  rainfallSeries: ["分區時段最大雨量時間序列", "分区时段最大雨量时间序列", "District maximum rainfall time series"],
+  trendHint: [
+    "氣溫取自最近的天文台氣溫測點，距離為直線距離。雨量取自空監站所在行政區，時段最大值不累加。橫軸為香港時間。",
+    "气温取自最近的天文台气温测点，距离为直线距离。雨量取自空气监测站所在行政区，时段最大值不累加。横轴为香港时间。",
+    "Temperature comes from the nearest Observatory site, with distance measured in a straight line. Rainfall comes from the station’s district. Period maxima are kept separate. The horizontal axis uses Hong Kong time.",
+  ],
+  coverage: ["{valid} / {total} 站有讀數", "{valid} / {total} 站有读数", "{valid} / {total} stations reporting"],
+  waiting: ["等待首輪 AQHI 資料", "等待首轮 AQHI 数据", "Waiting for the first AQHI readings"],
+  timestamp: ["{time} 香港時間", "{time} 香港时间", "{time} Hong Kong time"],
+  general: ["一般站", "一般站", "General"],
+  roadside: ["路邊站", "路边站", "Roadside"],
+  low: ["低", "低", "Low"],
+  moderate: ["中", "中", "Moderate"],
+  high: ["高", "高", "High"],
+  veryHigh: ["甚高", "甚高", "Very high"],
+  serious: ["嚴重", "严重", "Serious"],
+  missing: ["缺測", "缺测", "No reading"],
+  noReadings: ["這段時間沒有有效讀數", "这段时间没有有效读数", "No readings in this period"],
+  interval: ["{start} 至 {end}", "{start} 至 {end}", "{start} to {end}"],
+  window: ["香港時間 {interval}", "香港时间 {interval}", "Hong Kong time {interval}"],
+  snapshot: ["快照更新 {time}", "快照更新 {time}", "Snapshot updated {time}"],
+  retry: ["暫時無法讀取資料，稍後會自動重試。", "暂时无法读取数据，稍后会自动重试。", "Data is temporarily unavailable. Retrying automatically."],
+  stale: ["目前顯示 {time} 的快照。", "目前显示 {time} 的快照。", "Showing the snapshot from {time}."],
+  sources: [
+    "AQHI：{station} · 氣溫：{temperature}（約 {km} km） · 雨量：{rainfall}",
+    "AQHI：{station} · 气温：{temperature}（约 {km} km） · 雨量：{rainfall}",
+    "AQHI: {station} · Temperature: {temperature} (about {km} km away) · Rainfall: {rainfall}",
+  ],
+};
+const stationNames = {
+  "0": ["中西区", "Central & Western"], "1": ["南区", "Southern"], "2": ["东区", "Eastern"],
+  "3": ["观塘", "Kwun Tong"], "4": ["深水埗", "Sham Shui Po"], "5": ["葵涌", "Kwai Chung"],
+  "6": ["荃湾", "Tsuen Wan"], "7": ["将军澳", "Tseung Kwan O"], "8": ["元朗", "Yuen Long"],
+  "9": ["屯门", "Tuen Mun"], "10": ["东涌", "Tung Chung"], "11": ["大埔", "Tai Po"],
+  "12": ["沙田", "Sha Tin"], "13": ["北区", "North"], "14": ["塔门", "Tap Mun"],
+  "15": ["铜锣湾", "Causeway Bay"], "16": ["中环", "Central"], "17": ["旺角", "Mong Kok"],
+};
+const locationNames = {
+  "Hong Kong Park": ["香港公園", "香港公园"], "Wong Chuk Hang": ["黃竹坑", "黄竹坑"],
+  "Shau Kei Wan": ["筲箕灣", "筲箕湾"], "Kwun Tong": ["觀塘", "观塘"], "Sham Shui Po": ["深水埗", "深水埗"],
+  "Tsuen Wan Shing Mun Valley": ["荃灣城門谷", "荃湾城门谷"], "Tseung Kwan O": ["將軍澳", "将军澳"],
+  "Yuen Long Park": ["元朗公園", "元朗公园"], "Tuen Mun": ["屯門", "屯门"], "Chek Lap Kok": ["赤鱲角", "赤鱲角"],
+  "Tai Po": ["大埔", "大埔"], "Sha Tin": ["沙田", "沙田"], "Ta Kwu Ling": ["打鼓嶺", "打鼓岭"],
+  "Tai Mei Tuk": ["大美督", "大美督"], "Happy Valley": ["跑馬地", "跑马地"], "King's Park": ["京士柏", "京士柏"],
+  "Central & Western District": ["中西區", "中西区"], "Southern District": ["南區", "南区"],
+  "Eastern District": ["東區", "东区"], "Kwai Tsing": ["葵青", "葵青"], "Tsuen Wan": ["荃灣", "荃湾"],
+  "Sai Kung": ["西貢", "西贡"], "Yuen Long": ["元朗", "元朗"], "Islands District": ["離島區", "离岛区"],
+  "North District": ["北區", "北区"], "Wan Chai": ["灣仔", "湾仔"], "Yau Tsim Mong": ["油尖旺", "油尖旺"],
+};
+let languageIndex = 0;
+let hk;
+const t = (key, values) => messages[key][languageIndex].replace(/\{(\w+)\}/g, (_, name) => values[name]);
 const time = value => hk.format(new Date(value));
+const interval = (start, end) => t("interval", { start: time(start), end: time(end) });
+const stationName = station => stationNames[station.id]?.[languageIndex - 1] ?? station.label;
+const locationName = name => locationNames[name]?.[languageIndex] ?? name;
 const levels = [
-  ["低","#206c5b"], ["中","#806006"], ["高","#a54914"],
-  ["甚高","#a52635"], ["嚴重","#633a80"], ["缺測","#627882"],
+  ["low","#206c5b"], ["moderate","#806006"], ["high","#a54914"],
+  ["veryHigh","#a52635"], ["serious","#633a80"], ["missing","#627882"],
 ];
 const score = raw => raw === null || raw === undefined ? null : raw === "10+" ? 11 : Number(raw);
 function level(raw) {
@@ -120,6 +207,7 @@ let data;
 let stationId = "12";
 let latestRows = new Map();
 let pending;
+let loadFailed = false;
 const markerNodes = new Map();
 const tableBody = $("station-rows");
 const select = $("station-select");
@@ -127,12 +215,26 @@ const hours = $("hours");
 const map = $("map");
 const mapCanvas = map.querySelector("canvas");
 
-for (const [label, color] of levels) {
-  const entry = element("span");
-  const dot = element("i", "", "dot");
-  dot.style.setProperty("--risk", color);
-  entry.append(dot, document.createTextNode(label));
-  $("legend").append(entry);
+function applyLanguage(requested) {
+  languageIndex = Math.max(0, languages.indexOf(requested));
+  const language = languages[languageIndex];
+  $("language").value = language;
+  document.documentElement.lang = language;
+  document.title = t("title");
+  hk = new Intl.DateTimeFormat(language + "-HK", {
+    timeZone:"Asia/Hong_Kong", month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit", hourCycle:"h23",
+  });
+  for (const item of document.querySelectorAll("[data-text]")) item.textContent = t(item.dataset.text);
+  for (const item of document.querySelectorAll("[data-label]")) item.setAttribute("aria-label", t(item.dataset.label));
+  $("legend").replaceChildren();
+  for (const [key, color] of levels) {
+    const entry = element("span");
+    const dot = element("i", "", "dot");
+    dot.style.setProperty("--risk", color);
+    entry.append(dot, document.createTextNode(t(key)));
+    $("legend").append(entry);
+  }
+  render();
 }
 
 function isRoadside(station) {
@@ -149,29 +251,31 @@ function selectStation(id) {
 function buildStations() {
   const received = latestRows.size;
   const valid = [...latestRows.values()].filter(row => row.payload.value !== null).length;
-  $("coverage").textContent = received ? valid + " / " + data.stations.length + " 站有讀數" : "等待首輪 AQHI 資料";
+  $("coverage").textContent = received ? t("coverage", { valid, total: data.stations.length }) : t("waiting");
   const updated = [...latestRows.values()][0]?.observedAt;
-  $("latest").textContent = updated ? time(updated) + " 香港時間" : "";
+  $("latest").textContent = updated ? t("timestamp", { time: time(updated) }) : "";
   for (const item of markerNodes.values()) item.remove();
   markerNodes.clear();
   select.replaceChildren();
   tableBody.replaceChildren();
   for (const station of data.stations) {
     const value = latestRows.get(station.id)?.payload.value ?? null;
-    const type = isRoadside(station) ? "路邊" : "一般";
-    const option = element("option", station.label);
+    const roadside = isRoadside(station);
+    const type = t(roadside ? "roadside" : "general");
+    const label = stationName(station);
+    const option = element("option", label);
     option.value = station.id;
     select.append(option);
-    const marker = element("button", value ?? "—", "marker" + (isRoadside(station) ? " roadside" : ""));
+    const marker = element("button", value ?? "—", "marker" + (roadside ? " roadside" : ""));
     marker.dataset.station = station.id;
     marker.style.setProperty("--risk", levels[level(value)][1]);
-    marker.title = station.label + " · " + type + "站 · AQHI " + (value ?? "缺測");
+    marker.title = label + " · " + type + " · AQHI " + (value ?? t("missing"));
     marker.setAttribute("aria-label", marker.title);
     marker.addEventListener("click", () => selectStation(station.id));
     markerNodes.set(station.id, marker);
     map.append(marker);
     const tr = element("tr");
-    const button = element("button", station.label, "station");
+    const button = element("button", label, "station");
     button.dataset.station = station.id;
     button.addEventListener("click", () => selectStation(station.id));
     const name = element("td");
@@ -224,7 +328,7 @@ function drawChart(id, values, config) {
   if (!plotted.length) {
     ctx.fillStyle="#526e77";
     ctx.font="13px system-ui";
-    ctx.fillText("這段時間沒有有效讀數", 10, height/2);
+    ctx.fillText(t("noReadings"), 10, height/2);
     canvas.onpointermove=null;
     return;
   }
@@ -270,7 +374,7 @@ function drawChart(id, values, config) {
     const distance=Math.abs(x(Date.parse(nearby.observedAt))-offset);
     info.hidden=distance>14;
     if (!info.hidden) {
-      const observed = nearby.periodStart ? time(nearby.periodStart)+" 至 "+time(nearby.observedAt) : time(nearby.observedAt);
+      const observed = nearby.periodStart ? interval(nearby.periodStart, nearby.observedAt) : time(nearby.observedAt);
       info.textContent=observed+" · "+nearby.label;
       info.style.left=Math.max(0,Math.min(offset+9,width-205))+"px";
       info.style.top="0";
@@ -282,8 +386,12 @@ function drawTrends() {
   if (!data) return;
   const station = data.stations.find(item => item.id === stationId);
   const pair = data.pairs[stationId];
-  $("sources").textContent = "AQHI："+station.label+" · 氣溫："+pair.temperature
-    +"（約 "+pair.temperatureKm.toFixed(1)+" km） · 雨量："+pair.rainfall;
+  $("sources").textContent = t("sources", {
+    station: stationName(station),
+    temperature: locationName(pair.temperature),
+    km: pair.temperatureKm.toFixed(1),
+    rainfall: locationName(pair.rainfall),
+  });
   const air=data.air.filter(row => row.payload.stationId===stationId).map(row => ({
     observedAt:row.observedAt,value:score(row.payload.value),label:row.payload.value,
   }));
@@ -309,6 +417,26 @@ function snapshotWindow(snapshot, hours) {
   };
 }
 
+function renderNotice() {
+  const timestamp = data?.publishedAt && { time: time(data.publishedAt) };
+  let notice = t("loading");
+  if (loadFailed) {
+    notice = t("retry") + (timestamp ? " " + t("stale", timestamp) : "");
+  } else if (data) {
+    notice = t("window", { interval: interval(data.since, data.until) })
+      + (timestamp ? " · " + t("snapshot", timestamp) : "");
+  }
+  $("notice").textContent = notice;
+}
+
+function render() {
+  renderNotice();
+  if (!data) return;
+  buildStations();
+  drawMap();
+  selectStation(stationId);
+}
+
 async function load() {
   pending?.abort();
   const controller=new AbortController();
@@ -322,16 +450,22 @@ async function load() {
     data=snapshotUrl ? snapshotWindow(payload, Number(hours.value)) : payload;
     const newest=data.air.at(-1)?.observedAt;
     latestRows=new Map(data.air.filter(row => row.observedAt===newest).map(row => [row.payload.stationId,row]));
-    $("notice").textContent="香港時間 "+time(data.since)+" 至 "+time(data.until)
-      +(data.publishedAt ? " · 快照更新 "+time(data.publishedAt) : "");
-    buildStations();
-    drawMap();
-    selectStation(stationId);
+    loadFailed = false;
+    render();
   } catch (error) {
-    if (error.name!=="AbortError") $("notice").textContent="暫時無法讀取資料，稍後會自動重試。"
-      +(data?.publishedAt ? " 目前顯示 "+time(data.publishedAt)+" 的快照。" : "");
+    if (controller.signal.aborted || error.name === "AbortError") return;
+    loadFailed = true;
+    renderNotice();
   }
 }
+let savedLanguage;
+try { savedLanguage = localStorage.getItem("weather-dashboard-language"); } catch {}
+applyLanguage(savedLanguage);
+$("language").addEventListener("change", event => {
+  const language = event.target.value;
+  try { localStorage.setItem("weather-dashboard-language", language); } catch {}
+  applyLanguage(language);
+});
 hours.addEventListener("change",load);
 new ResizeObserver(() => { drawMap(); drawTrends(); }).observe(document.querySelector("main"));
 setInterval(load,60_000);
