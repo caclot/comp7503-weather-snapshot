@@ -11,7 +11,9 @@
   * { box-sizing:border-box }
   body { margin:0 }
   header { position:sticky; top:0; z-index:10; background:#103a47; color:white; padding:7px max(16px,calc((100vw - 1240px)/2)); display:flex; justify-content:space-between; align-items:center; gap:6px 20px; flex-wrap:wrap }
+  .header-title { display:flex; align-items:center; gap:10px; min-width:0 }
   h1 { font-size:clamp(17px,2vw,22px); line-height:1.15; margin:0 }
+  .header-sources { display:grid; flex:none; color:#c7e4e5; font-size:11px; line-height:1.2; white-space:nowrap }
   p { margin:4px 0 }
   main { max-width:1280px; margin:auto; padding:20px }
   section { background:#fff; border:1px solid var(--stroke); border-radius:14px; padding:20px; min-width:0 }
@@ -61,7 +63,8 @@
   @media (max-width:840px) { .grid,.analysis-plots { grid-template-columns:1fr } }
   @media (max-width:640px) {
     header { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"title language" "station range"; padding:6px 12px; gap:4px 8px }
-    header h1 { grid-area:title }
+    .header-title { grid-area:title; gap:6px }
+    header h1 { font-size:clamp(14px,4.5vw,17px) }
     header .controls { display:contents }
     header label[for="station-select"] { grid-area:station }
     header label[for="hours"] { grid-area:range }
@@ -76,7 +79,10 @@
 </head>
 <body>
 <header>
-  <h1 data-text="title">香港天氣與空氣質素</h1>
+  <div class="header-title">
+    <h1 data-text="title">香港天氣與空氣質素</h1>
+    <div class="header-sources"><span data-text="agencyEpd">環境保護署</span><span data-text="agencyHko">香港天文台</span></div>
+  </div>
   <div class="controls">
     <label for="station-select"><span data-text="station">站點</span> <select id="station-select" aria-label="選擇監測站" data-label="selectStation" disabled></select></label>
     <label for="hours"><span data-text="range">時間範圍</span> <select id="hours"><option value="24" data-text="last24">近 24 小時</option><option value="36" data-text="last36">近 36 小時</option><option value="48" data-text="last48">近 48 小時</option><option value="72" data-text="last72">近 72 小時</option><option value="168" data-long-range data-text="last7Days" hidden>近 7 天</option><option value="720" data-long-range data-text="last30Days" hidden>近 30 天</option></select></label>
@@ -138,6 +144,8 @@ const snapshotUrl = document.querySelector('meta[name="dashboard-snapshot"]').co
 const languages = ["zh-Hant", "zh-Hans", "en"];
 const messages = {
   title: ["香港天氣與空氣質素", "香港天气与空气质量", "Hong Kong Weather and Air Quality"],
+  agencyEpd: ["環境保護署", "环境保护署", "EPD"],
+  agencyHko: ["香港天文台", "香港天文台", "HKO"],
   language: ["語言", "语言", "Language"],
   range: ["時間範圍", "时间范围", "Time range"],
   last24: ["近 24 小時", "近 24 小时", "Last 24 hours"],
