@@ -91,7 +91,7 @@
       <div class="chart" id="air-chart"><div class="row"><h3>AQHI</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="AQHI 時間序列" data-label="airSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
       <div class="chart" id="temp-chart"><div class="row"><h3 data-text="temperature">氣溫（°C）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="氣溫時間序列" data-label="temperatureSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
       <div class="chart" id="rain-chart"><div class="row"><h3 data-text="rainfall">分區時段最大雨量（mm）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="分區時段最大雨量時間序列" data-label="rainfallSeries" role="img"></canvas><div class="tooltip" hidden></div></div></div>
-      <p id="live-trend-hint" class="subtle" data-text="trendHint">氣溫取自最近的天文台氣溫測點，距離為直線距離。雨量取自空監站所在行政區，時段最大值不累加。橫軸為香港時間。</p>
+      <p id="live-trend-hint" class="subtle" data-text="trendHint">氣溫取自最近的天文台氣溫測點，距離為直線距離。雨量取自空監站所在行政區，來源為天文台及補充 CSV。時段最大值不累加。橫軸為香港時間。</p>
     </section>
   </div>
 </main>
@@ -120,9 +120,9 @@ const messages = {
     "When HKO reports no rain across Hong Kong, each district shows 0 mm. Missing readings appear as gaps.",
   ],
   historySources: [
-    "AQHI：環保署 · 氣溫及雨量：天文台",
-    "AQHI：环保署 · 气温及雨量：天文台",
-    "AQHI: EPD · Temperature and rainfall: HKO",
+    "AQHI：環保署 · 氣溫：天文台 · 雨量：天文台及補充 CSV",
+    "AQHI：环保署 · 气温：天文台 · 雨量：天文台及补充 CSV",
+    "AQHI: EPD · Temperature: HKO · Rainfall: HKO and supplementary CSV",
   ],
   loading: ["正在讀取資料…", "正在读取数据…", "Loading data…"],
   map: ["AQHI 監測站地圖", "AQHI 监测站地图", "AQHI Station Map"],
@@ -146,9 +146,9 @@ const messages = {
   temperatureSeries: ["氣溫時間序列", "气温时间序列", "Temperature time series"],
   rainfallSeries: ["分區時段最大雨量時間序列", "分区时段最大雨量时间序列", "District maximum rainfall time series"],
   trendHint: [
-    "氣溫取自最近的天文台氣溫測點，距離為直線距離。雨量取自空監站所在行政區，時段最大值不累加。橫軸為香港時間。",
-    "气温取自最近的天文台气温测点，距离为直线距离。雨量取自空气监测站所在行政区，时段最大值不累加。横轴为香港时间。",
-    "Temperature comes from the nearest Observatory site, with distance measured in a straight line. Rainfall comes from the station’s district. Period maxima are kept separate. The horizontal axis uses Hong Kong time.",
+    "氣溫取自最近的天文台氣溫測點，距離為直線距離。雨量取自空監站所在行政區，來源為天文台及補充 CSV。時段最大值不累加。橫軸為香港時間。",
+    "气温取自最近的天文台气温测点，距离为直线距离。雨量取自空气监测站所在行政区，来源为天文台及补充 CSV。时段最大值不累加。横轴为香港时间。",
+    "Temperature comes from the nearest Observatory site, with distance measured in a straight line. Rainfall comes from HKO and a supplementary CSV for the station’s district. Period maxima are kept separate. The horizontal axis uses Hong Kong time.",
   ],
   coverage: ["{valid} / {total} 站有讀數", "{valid} / {total} 站有读数", "{valid} / {total} stations reporting"],
   waiting: ["等待首輪 AQHI 資料", "等待首轮 AQHI 数据", "Waiting for the first AQHI readings"],
