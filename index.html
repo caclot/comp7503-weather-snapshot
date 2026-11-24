@@ -43,10 +43,19 @@
   .plot { position:relative; height:116px }
   .chart { margin-top:12px }
   .chart + .chart { border-top:1px solid #e8eeee; padding-top:10px }
+  #analysis { margin-top:16px }
+  .analysis-plots { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; margin-top:12px }
+  .analysis-plots .plot { height:290px }
+  .analysis-plots label { display:flex; align-items:center; gap:8px }
+  .analysis-plots input { width:90px; accent-color:var(--teal) }
+  #analysis-results { margin-top:10px }
+  #analysis-results td:not(:first-child),#analysis-results th:not(:first-child) { text-align:right; font-variant-numeric:tabular-nums }
+  #analysis details { margin-top:10px }
+  #analysis summary { width:fit-content; cursor:pointer }
   .tooltip { position:absolute; z-index:2; pointer-events:none; background:#103a47; color:white; border-radius:6px; padding:6px 8px; font-size:12px; max-width:200px }
   a { color:var(--teal) }
   [hidden] { display:none !important }
-  @media (max-width:840px) { .grid { grid-template-columns:1fr } }
+  @media (max-width:840px) { .grid,.analysis-plots { grid-template-columns:1fr } }
   @media (max-width:480px) { main, section { padding:13px } th,td { padding:6px 3px } }
 </style>
 </head>
@@ -86,6 +95,25 @@
       <p class="subtle" data-text="trendHint">氣溫取自距離所選 AQHI 站最近的天文台氣溫測點，距離按直線計算。雨量取自該 AQHI 站所在行政區。</p>
     </section>
   </div>
+  <section id="analysis" aria-labelledby="analysis-title">
+    <div class="top"><h2 id="analysis-title" data-text="analysis">關聯分析</h2><span id="analysis-station" class="subtle"></span></div>
+    <div class="analysis-plots">
+      <div>
+        <div class="row"><h3 data-text="tempAir">氣溫與 AQHI</h3></div>
+        <div class="plot" id="temperature-scatter"><canvas role="img" aria-label="氣溫與 AQHI 散點圖" data-label="tempAir"></canvas><div class="tooltip" hidden></div></div>
+      </div>
+      <div>
+        <div class="row"><h3 data-text="threeAxis">氣溫、AQHI 與雨量</h3><span id="complete-hours" class="subtle"></span></div>
+        <div class="plot" id="weather-scatter"><canvas role="img" aria-label="氣溫、AQHI 與雨量三維散點圖" data-label="threeAxis"></canvas><div class="tooltip" hidden></div></div>
+        <label class="subtle"><span data-text="rotate">旋轉視角</span><input id="analysis-rotation" type="range" min="20" max="70" value="42"></label>
+      </div>
+    </div>
+    <table id="analysis-results" aria-labelledby="analysis-title">
+      <thead><tr><th scope="col" data-text="pair">指標組合</th><th scope="col">Spearman ρ</th><th scope="col" data-text="pairedHours">有效配對數</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <details class="subtle"><summary data-text="analysisMethod">配對及計算方法</summary><p data-text="analysisAlignment"></p><p data-text="analysisLimits"></p></details>
+  </section>
 </main>
 <script>
 "use strict";
@@ -149,6 +177,28 @@ const messages = {
     "AQHI：{station} · 氣溫：{temperature}（約 {km} km） · 雨量：{rainfall}",
     "AQHI：{station} · 气温：{temperature}（约 {km} km） · 雨量：{rainfall}",
     "AQHI: {station} · Temperature: {temperature} (about {km} km away) · Rainfall: {rainfall}",
+  ],
+  analysis: ["關聯分析", "关联分析", "Relationship analysis"],
+  tempAir: ["氣溫與 AQHI", "气温与 AQHI", "Temperature and AQHI"],
+  rainAir: ["雨量與 AQHI", "雨量与 AQHI", "Rainfall and AQHI"],
+  tempRain: ["氣溫與雨量", "气温与雨量", "Temperature and rainfall"],
+  threeAxis: ["氣溫、AQHI 與雨量", "气温、AQHI 与雨量", "Temperature, AQHI and rainfall"],
+  rainAxis: ["雨量 (mm)", "雨量 (mm)", "Rainfall (mm)"],
+  rotate: ["旋轉視角", "旋转视角", "Rotate"],
+  pair: ["指標組合", "指标组合", "Variable pair"],
+  pairedHours: ["有效配對數", "有效配对数", "Paired hours"],
+  completeHours: ["{count} 個完整小時", "{count} 个完整小时", "{count} complete hours"],
+  overlappingHours: ["{count} 個小時的讀數重疊", "{count} 个小时的读数重叠", "{count} hours with the same readings"],
+  analysisMethod: ["配對及計算方法", "配对及计算方法", "Pairing and calculation"],
+  analysisAlignment: [
+    "以 AQHI 觀測小時為基準，配對同一時刻的氣溫，以及提前 15 分鐘結束的一小時分區最大雨量。缺測略過，0 mm 計入。重疊讀數以較大的點表示。",
+    "以 AQHI 观测小时为基准，配对同一时刻的气温，以及提前 15 分钟结束的一小时分区最大雨量。缺测略过，0 mm 计入。重叠读数以较大的点表示。",
+    "Each AQHI hour is matched with temperature at that time and the district’s one-hour rainfall maximum ending 15 minutes earlier. Missing readings are skipped, and 0 mm counts. Larger points represent repeated readings.",
+  ],
+  analysisLimits: [
+    "相關係數按組合各自計算。少於 3 組或任一指標沒有變化時顯示 —。雨量分析包括補充 CSV，相關性不能據此推斷因果。",
+    "相关系数按组合各自计算。少于 3 组或任一指标没有变化时显示 —。雨量分析包括补充 CSV，相关性不能据此推断因果。",
+    "Spearman ρ is calculated for each pair. A dash indicates fewer than three pairs or a constant variable. Rainfall analysis includes the supplementary CSV. Correlation alone cannot establish causation.",
   ],
 };
 const stationNames = {
@@ -216,6 +266,7 @@ let pending;
 let loadFailed = false;
 let historyArchive;
 let historyCachedUntil = 0;
+let completeAnalysis = [];
 const markerNodes = new Map();
 const tableBody = $("station-rows");
 const select = $("station-select");
@@ -393,6 +444,171 @@ function drawChart(id, values, config) {
   };
   canvas.onpointerleave=() => { info.hidden=true; };
 }
+function analysisHours(air, temperature, rain) {
+  const temperatureAt = new Map(temperature.filter(row => Number.isFinite(row.value))
+    .map(row => [Date.parse(row.observedAt), row.value]));
+  const rainAt = new Map();
+  for (const row of rain) {
+    const end = Date.parse(row.observedAt);
+    if (end - Date.parse(row.periodStart) === 3600_000 && Number.isFinite(row.value)) {
+      rainAt.set(end, row.value);
+    }
+  }
+  const aqhiAt = new Map();
+  for (const row of air) {
+    const hour = Date.parse(row.observedAt);
+    if (hour % 3600_000 === 0 && (!aqhiAt.has(hour) || Number.isFinite(row.value))) {
+      aqhiAt.set(hour, row.value);
+    }
+  }
+  return [...aqhiAt].map(([hour, aqhi]) => ({
+    hour, aqhi, temperature: temperatureAt.get(hour), rain: rainAt.get(hour - 15 * 60_000),
+  }));
+}
+
+function ranks(values) {
+  const sorted = values.map((value, index) => ({ value, index })).sort((a, b) => a.value - b.value);
+  const output = new Array(values.length);
+  for (let start = 0; start < sorted.length;) {
+    let end = start + 1;
+    while (end < sorted.length && sorted[end].value === sorted[start].value) end++;
+    const average = (start + end + 1) / 2;
+    for (let i = start; i < end; i++) output[sorted[i].index] = average;
+    start = end;
+  }
+  return output;
+}
+
+function spearman(rows, xKey, yKey) {
+  if (rows.length < 3) return null;
+  const xs = ranks(rows.map(row => row[xKey]));
+  const ys = ranks(rows.map(row => row[yKey]));
+  const mean = (rows.length + 1) / 2;
+  let covariance = 0, squareX = 0, squareY = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const dx = xs[i] - mean, dy = ys[i] - mean;
+    covariance += dx * dy;
+    squareX += dx * dx;
+    squareY += dy * dy;
+  }
+  return squareX && squareY ? covariance / Math.sqrt(squareX * squareY) : null;
+}
+
+function drawScatter(id, rows, threeAxes = false) {
+  const plot = $(id);
+  const canvas = plot.querySelector("canvas");
+  const info = plot.querySelector(".tooltip");
+  info.hidden = true;
+  const { ctx, width, height } = setup(canvas);
+  ctx.font = "12px system-ui";
+  ctx.fillStyle = "#526e77";
+  if (!rows.length) {
+    ctx.fillText(t("noReadings"), 10, height / 2);
+    canvas.onpointermove = null;
+    return;
+  }
+
+  const temperatures = rows.map(row => row.temperature);
+  const min = Math.floor(Math.min(...temperatures)) - 1;
+  const max = Math.ceil(Math.max(...temperatures)) + 1;
+  const rainMax = threeAxes ? Math.max(1, Math.ceil(Math.max(...rows.map(row => row.rain)))) : 1;
+  const depth = threeAxes ? Math.min(91, width * .23) : 0;
+  const left = 42 + depth, right = width - 22, bottom = height - 54;
+  const up = height - (threeAxes ? 121 : 87);
+  const angle = Number($("analysis-rotation").value) * Math.PI / 180;
+  const project = (temperature, aqhi, rain = 0) => [
+    left + (right - left) * (temperature - min) / (max - min) - depth * Math.sin(angle) * rain / rainMax,
+    bottom - up * (aqhi - 1) / 10 - depth * Math.cos(angle) * rain / rainMax,
+  ];
+  const line = (start, end, color = "#94a8ad") => {
+    ctx.strokeStyle = color;
+    ctx.beginPath(); ctx.moveTo(...start); ctx.lineTo(...end); ctx.stroke();
+  };
+  const label = (value, x, y, align = "left") => {
+    ctx.textAlign = align;
+    ctx.fillStyle = "#526e77";
+    ctx.fillText(value, x, y);
+  };
+  const origin = project(min, 1);
+  for (const aqhi of [1, 3, 6, 8, 11]) {
+    const start = project(min, aqhi);
+    line(start, project(max, aqhi), "#e1eaeb");
+    label(aqhi === 11 ? "10+" : aqhi, start[0] - 7, start[1] + 4, "right");
+  }
+  const tickStep = Math.max(1, Math.ceil((max - min) / (width < 380 ? 3 : 5)));
+  for (let temperature = min; temperature <= max; temperature += tickStep) {
+    const [x, y] = project(temperature, 1);
+    label(temperature, x, y + 18, "center");
+  }
+  line(origin, project(min, 11));
+  line(origin, project(max, 1));
+  label("AQHI", left, bottom - up - 10, "center");
+  label(t("temperature"), (left + right) / 2, height - 8, "center");
+  if (threeAxes) {
+    const [x, y] = project(min, 1, rainMax);
+    line(origin, [x, y]);
+    line([x, y], project(max, 1, rainMax), "#e1eaeb");
+    line(project(max, 1), project(max, 1, rainMax), "#e1eaeb");
+    label(rainMax, x - 7, y + 4, "right");
+    const rainLabel = t("rainAxis");
+    const labelWidth = ctx.measureText(rainLabel).width;
+    label(rainLabel, Math.max(4, x - 6 - labelWidth), y + 21);
+  }
+
+  const groups = new Map();
+  for (const row of rows) {
+    const rain = threeAxes ? row.rain : 0;
+    const key = JSON.stringify([row.temperature, row.aqhi, rain]);
+    const group = groups.get(key);
+    if (group) group.hours++;
+    else groups.set(key, { ...row, point: project(row.temperature, row.aqhi, rain), hours: 1 });
+  }
+  const marks = [...groups.values()].sort((a, b) => a.point[1] - b.point[1]);
+  ctx.fillStyle = "#076d68b8";
+  for (const mark of marks) {
+    ctx.beginPath(); ctx.arc(...mark.point, Math.min(9, 3 + Math.log2(mark.hours)), 0, Math.PI * 2); ctx.fill();
+  }
+  canvas.onpointermove = event => {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left, y = event.clientY - rect.top;
+    const distance = mark => Math.hypot(mark.point[0] - x, mark.point[1] - y);
+    const mark = marks.reduce((nearest, item) => distance(item) <= distance(nearest) ? item : nearest);
+    info.hidden = distance(mark) > 13;
+    if (info.hidden) return;
+    const aqhi = mark.aqhi === 11 ? "10+" : mark.aqhi;
+    const details = mark.hours > 1 ? t("overlappingHours", { count: mark.hours }) : time(mark.hour);
+    info.textContent = [mark.temperature + " °C", "AQHI " + aqhi, ...(threeAxes ? [mark.rain + " mm"] : []), details].join(" · ");
+    info.style.left = Math.max(0, Math.min(x + 9, width - info.offsetWidth)) + "px";
+    info.style.top = Math.max(0, y - info.offsetHeight - 8) + "px";
+  };
+  canvas.onpointerleave = () => { info.hidden = true; };
+}
+
+function drawAnalysis(station, air, temperature, rain) {
+  const rows = analysisHours(air, temperature, rain);
+  const paired = (x, y) => rows.filter(row => Number.isFinite(row[x]) && Number.isFinite(row[y]));
+  const tempAir = paired("temperature", "aqhi");
+  completeAnalysis = tempAir.filter(row => Number.isFinite(row.rain));
+  $("analysis-station").textContent = stationName(station);
+  $("complete-hours").textContent = t("completeHours", { count: completeAnalysis.length });
+  const results = $("analysis-results").tBodies[0];
+  results.replaceChildren();
+  for (const [title, x, y, pairs] of [
+    ["tempAir", "temperature", "aqhi", tempAir],
+    ["rainAir", "rain", "aqhi", paired("rain", "aqhi")],
+    ["tempRain", "temperature", "rain", paired("temperature", "rain")],
+  ]) {
+    const value = spearman(pairs, x, y);
+    const row = element("tr");
+    const heading = element("th", t(title));
+    heading.scope = "row";
+    row.append(heading, element("td", value === null ? "—" : value.toFixed(2)), element("td", pairs.length));
+    results.append(row);
+  }
+  drawScatter("temperature-scatter", tempAir);
+  drawScatter("weather-scatter", completeAnalysis, true);
+}
+
 function drawTrends() {
   if (!data) return;
   const station = data.stations.find(item => item.id === stationId);
@@ -410,12 +626,15 @@ function drawTrends() {
   const weatherSeries = (metric, location, unit) => data.weather.filter(row => row.payload.metric===metric && row.payload.location===location).map(row => ({
     observedAt:row.observedAt, periodStart:row.periodStart, value:row.payload.value, label:row.payload.value+" "+unit,
   }));
-  drawChart("temp-chart",weatherSeries("temperature",pair.temperature,"°C"),{color:"#ac512c",connect:true});
+  const temperature = weatherSeries("temperature", pair.temperature, "°C");
+  drawChart("temp-chart",temperature,{color:"#ac512c",connect:true});
   const rain = weatherSeries("rainfall_max", pair.rainfall, "mm");
   const maxRain = Math.max(1, ...rain.map(row => row.value));
   drawChart("rain-chart", rain, {color:"#3f6fa0", bounds:[0,maxRain], connect:false});
+  drawAnalysis(station, air, temperature, rain);
 }
 select.addEventListener("change", () => selectStation(select.value));
+$("analysis-rotation").addEventListener("input", () => drawScatter("weather-scatter", completeAnalysis, true));
 
 function snapshotWindow(snapshot, hours) {
   const start = Date.parse(snapshot.until) - hours * 3600_000;
