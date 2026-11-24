@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="dashboard-snapshot" content="https://raw.githubusercontent.com/caclot/comp7503-weather-snapshot/snapshots/snapshot.json">
+<title>香港天氣與空氣質素</title>
+<style>
+  :root { color-scheme: light; font: 15px/1.5 system-ui,sans-serif; color:#172d3b; background:#eef3f4; --ink:#172d3b; --muted:#526e77; --stroke:#d5e2e3; --teal:#076d68 }
+  * { box-sizing:border-box }
+  body { margin:0 }
+  header { background:#103a47; color:white; padding:24px max(20px,calc((100vw - 1240px)/2)); display:flex; justify-content:space-between; align-items:center; gap:24px; flex-wrap:wrap }
+  h1 { font-size:clamp(24px,3vw,36px); margin:0; letter-spacing:.03em }
+  p { margin:4px 0 }
+  header p { color:#c7e4e5 }
+  main { max-width:1280px; margin:auto; padding:20px }
+  section { background:#fff; border:1px solid var(--stroke); border-radius:14px; padding:20px; min-width:0 }
+  h2 { font-size:19px; margin:0 }
+  h3 { font-size:14px; margin:0 0 3px }
+  .top,.row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap }
+  .subtle { color:var(--muted); font-size:13px }
+  .grid { display:grid; grid-template-columns:1.35fr 1fr; gap:16px; align-items:start }
+  .stack { display:grid; gap:16px }
+  #notice { min-height:23px; margin:0 0 9px; color:var(--muted) }
+  select { padding:7px 9px; font:inherit; background:#fff; color:var(--ink); border:1px solid #b3c6cc; border-radius:7px }
+  header label { display:flex; align-items:center; gap:9px }
+  #map { position:relative; height:clamp(260px,34vw,425px); border-radius:9px; background:#e6f1f4; overflow:hidden; margin:12px 0 7px }
+  canvas { display:block; width:100%; height:100% }
+  .marker { position:absolute; transform:translate(-50%,-50%); padding:0; width:23px; height:23px; border-radius:50%; border:1px solid white; background:var(--risk); color:white; font:bold 11px system-ui; cursor:pointer; box-shadow:0 1px 3px #15374860 }
+  .marker.roadside { border-radius:5px }
+  .marker[aria-pressed="true"] { outline:2px solid #172d3b; outline-offset:2px; z-index:1 }
+  .legend { display:flex; flex-wrap:wrap; gap:10px; margin:9px 0; font-size:12px }
+  .legend span { display:inline-flex; align-items:center; gap:4px }
+  .dot { width:9px; height:9px; border-radius:50%; display:inline-block; background:var(--risk); flex:none }
+  #stations { max-height:385px; overflow:auto; margin-top:10px }
+  table { width:100%; border-collapse:collapse; font-size:13px }
+  th,td { text-align:left; border-bottom:1px solid #e8eeee; padding:7px 6px }
+  th:last-child,td:last-child { text-align:right }
+  tr:has(button[aria-pressed="true"]) { background:#e5f3f1 }
+  .station { font:inherit; color:var(--teal); text-align:left; padding:0; border:0; background:none; cursor:pointer }
+  .value { display:inline-flex; align-items:center; gap:5px; font-weight:bold }
+  .plot { position:relative; height:116px }
+  .chart { margin-top:12px }
+  .chart + .chart { border-top:1px solid #e8eeee; padding-top:10px }
+  .tooltip { position:absolute; z-index:2; pointer-events:none; background:#103a47; color:white; border-radius:6px; padding:6px 8px; font-size:12px; max-width:200px }
+  a { color:var(--teal) }
+  [hidden] { display:none !important }
+  @media (max-width:840px) { .grid { grid-template-columns:1fr } }
+  @media (max-width:480px) { main, section { padding:13px } th,td { padding:6px 3px } }
+</style>
+</head>
+<body>
+<header>
+  <div><h1>香港天氣與空氣質素</h1><p>香港天文台 · 環境保護署</p></div>
+  <label for="hours">時間範圍 <select id="hours"><option value="24">最近 24 小時</option><option value="48">最近 48 小時</option><option value="72">最近 72 小時</option></select></label>
+</header>
+<main>
+  <p id="notice" role="status">正在讀取資料…</p>
+  <div class="grid">
+    <div class="stack">
+      <section aria-labelledby="map-title">
+        <div class="top"><h2 id="map-title">AQHI 監測站地圖</h2><span id="coverage" class="subtle"></span></div>
+        <div id="map"><canvas aria-hidden="true"></canvas></div>
+        <div id="legend" class="legend" aria-label="AQHI 風險級別"></div>
+        <p class="subtle">圓形為一般站，方形為路邊站。點選任何一站查看 AQHI、氣溫和雨量。</p>
+        <p class="subtle">地圖資料：<a href="https://portal.csdi.gov.hk/csdi-webpage/dataset/epd_rcd_1629267205214_40635">環保署監測站</a> · <a href="https://portal.csdi.gov.hk/csdi-webpage/dataset/had_rcd_1634523272907_75218">民政事務總署地界</a></p>
+      </section>
+      <section>
+        <div class="top"><h2>各站最新讀數</h2><span id="latest" class="subtle"></span></div>
+        <div id="stations"><table>
+          <thead><tr><th scope="col">站點</th><th scope="col">類型</th><th scope="col">AQHI</th></tr></thead>
+          <tbody id="station-rows"></tbody>
+        </table></div>
+      </section>
+    </div>
+    <section aria-labelledby="trends-title">
+      <div class="top"><h2 id="trends-title">觀測趨勢</h2><select id="station-select" aria-label="選擇監測站"></select></div>
+      <p id="sources" class="subtle"></p>
+      <div class="chart" id="air-chart"><div class="row"><h3>AQHI</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="AQHI 時間序列" role="img"></canvas><div class="tooltip" hidden></div></div></div>
+      <div class="chart" id="temp-chart"><div class="row"><h3>氣溫（°C）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="氣溫時間序列" role="img"></canvas><div class="tooltip" hidden></div></div></div>
+      <div class="chart" id="rain-chart"><div class="row"><h3>分區時段最大雨量（mm）</h3><strong class="reading"></strong></div><div class="plot"><canvas aria-label="分區時段最大雨量時間序列" role="img"></canvas><div class="tooltip" hidden></div></div></div>
+      <p class="subtle">氣溫取自最近的天文台氣溫測點，距離為直線距離。雨量取自空監站所在行政區，時段最大值不累加。橫軸為香港時間。</p>
+    </section>
+  </div>
+</main>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const snapshotUrl = document.querySelector('meta[name="dashboard-snapshot"]').content;
+const hk = new Intl.DateTimeFormat("zh-HK", { timeZone:"Asia/Hong_Kong", month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit", hourCycle:"h23" });
+const time = value => hk.format(new Date(value));
+const levels = [
+  ["低","#206c5b"], ["中","#806006"], ["高","#a54914"],
+  ["甚高","#a52635"], ["嚴重","#633a80"], ["缺測","#627882"],
+];
+const score = raw => raw === null || raw === undefined ? null : raw === "10+" ? 11 : Number(raw);
+function level(raw) {
+  const n = score(raw);
+  if (n === null) return 5;
+  return n <= 3 ? 0 : n <= 6 ? 1 : n === 7 ? 2 : n <= 10 ? 3 : 4;
+}
+function element(tag, content, className) {
+  const el = document.createElement(tag);
+  if (content !== undefined) el.textContent = content;
+  if (className) el.className = className;
+  return el;
+}
+function setup(canvas) {
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(ratio, ratio);
+  return { width, height, ctx };
+}
+
+let data;
+let stationId = "12";
+let latestRows = new Map();
+let pending;
+const markerNodes = new Map();
+const tableBody = $("station-rows");
+const select = $("station-select");
+const hours = $("hours");
+const map = $("map");
+const mapCanvas = map.querySelector("canvas");
+
+for (const [label, color] of levels) {
+  const entry = element("span");
+  const dot = element("i", "", "dot");
+  dot.style.setProperty("--risk", color);
+  entry.append(dot, document.createTextNode(label));
+  $("legend").append(entry);
+}
+
+function isRoadside(station) {
+  return latestRows.get(station.id)?.payload.stationType === "roadside" || station.type === "roadside";
+}
+function selectStation(id) {
+  stationId = id;
+  select.value = id;
+  for (const button of document.querySelectorAll("button[data-station]")) {
+    button.setAttribute("aria-pressed", String(button.dataset.station === id));
+  }
+  drawTrends();
+}
+function buildStations() {
+  const received = latestRows.size;
+  const valid = [...latestRows.values()].filter(row => row.payload.value !== null).length;
+  $("coverage").textContent = received ? valid + " / " + data.stations.length + " 站有讀數" : "等待首輪 AQHI 資料";
+  const updated = [...latestRows.values()][0]?.observedAt;
+  $("latest").textContent = updated ? time(updated) + " 香港時間" : "";
+  for (const item of markerNodes.values()) item.remove();
+  markerNodes.clear();
+  select.replaceChildren();
+  tableBody.replaceChildren();
+  for (const station of data.stations) {
+    const value = latestRows.get(station.id)?.payload.value ?? null;
+    const type = isRoadside(station) ? "路邊" : "一般";
+    const option = element("option", station.label);
+    option.value = station.id;
+    select.append(option);
+    const marker = element("button", value ?? "—", "marker" + (isRoadside(station) ? " roadside" : ""));
+    marker.dataset.station = station.id;
+    marker.style.setProperty("--risk", levels[level(value)][1]);
+    marker.title = station.label + " · " + type + "站 · AQHI " + (value ?? "缺測");
+    marker.setAttribute("aria-label", marker.title);
+    marker.addEventListener("click", () => selectStation(station.id));
+    markerNodes.set(station.id, marker);
+    map.append(marker);
+    const tr = element("tr");
+    const button = element("button", station.label, "station");
+    button.dataset.station = station.id;
+    button.addEventListener("click", () => selectStation(station.id));
+    const name = element("td");
+    name.append(button);
+    const reading = element("td", value ?? "—");
+    reading.style.color = levels[level(value)][1];
+    tr.append(name, element("td", type), reading);
+    tableBody.append(tr);
+  }
+}
+
+function drawMap() {
+  if (!data) return;
+  const { ctx, width, height } = setup(mapCanvas);
+  const west=113.82, east=114.45, south=22.14, north=22.57;
+  const scale = Math.min((width-20)/(east-west), (height-20)/(north-south));
+  const project = (lon, lat) => [width/2+(lon-(west+east)/2)*scale, height/2-((lat-(south+north)/2)*scale)];
+  ctx.fillStyle="#cddfdd";
+  ctx.strokeStyle="#94b7b6";
+  ctx.lineWidth=1;
+  for (const district of data.districts) {
+    ctx.beginPath();
+    for (const ring of district) {
+      ring.forEach(([lon,lat], index) => {
+        const [x,y] = project(lon,lat);
+        if (index) ctx.lineTo(x,y); else ctx.moveTo(x,y);
+      });
+      ctx.closePath();
+    }
+    ctx.fill("evenodd");
+    ctx.stroke();
+  }
+  for (const station of data.stations) {
+    const marker = markerNodes.get(station.id);
+    if (!marker) continue;
+    const [x,y] = project(station.longitude,station.latitude);
+    marker.style.left=x+"px";
+    marker.style.top=y+"px";
+  }
+}
+
+function drawChart(id, values, config) {
+  const panel = $(id);
+  const canvas = panel.querySelector("canvas");
+  const info = panel.querySelector(".tooltip");
+  panel.querySelector(".reading").textContent = values.at(-1)?.label ?? "—";
+  info.hidden = true;
+  const { ctx,width,height } = setup(canvas);
+  const plotted = values.filter(row => row.value !== null);
+  if (!plotted.length) {
+    ctx.fillStyle="#526e77";
+    ctx.font="13px system-ui";
+    ctx.fillText("這段時間沒有有效讀數", 10, height/2);
+    canvas.onpointermove=null;
+    return;
+  }
+
+  const minValue = Math.min(...plotted.map(p => p.value));
+  const maxValue = Math.max(...plotted.map(p => p.value));
+  const [min,max] = config.bounds ?? [Math.floor(minValue)-1,Math.ceil(maxValue)+1];
+  const start = Date.parse(data.since), end = Date.parse(data.until);
+  const left=35, right=width-12, top=12, bottom=height-22;
+  const x = t => left + (t-start)/(end-start)*(right-left);
+  const y = v => bottom - (v-min)/(max-min)*(bottom-top);
+  ctx.font="10px system-ui";
+  ctx.fillStyle="#526e77";
+  ctx.strokeStyle="#e1eaeb";
+  for (const tick of config.ticks ?? [min,(min+max)/2,max]) {
+    const ht=y(tick);
+    const axisLabel=tick===11 && id==="air-chart" ? "10+" : String(Math.round(tick*10)/10);
+    ctx.fillText(axisLabel, 2, ht+3);
+    ctx.beginPath(); ctx.moveTo(left,ht); ctx.lineTo(right,ht); ctx.stroke();
+  }
+  const xTicks = width > 415 ? [0,1/3,2/3,1] : [0,0.5,1];
+  for (const part of xTicks) {
+    const label=time(start+part*(end-start));
+    const point=left+part*(right-left);
+    ctx.fillText(label,Math.max(1,Math.min(point-ctx.measureText(label).width/2,width-ctx.measureText(label).width-1)),height-4);
+  }
+  ctx.strokeStyle=config.color;
+  ctx.fillStyle=config.color;
+  ctx.lineWidth=2;
+  let previous;
+  for (const row of values) {
+    if (row.value === null) { previous=undefined; continue; }
+    const t=Date.parse(row.observedAt);
+    if (config.connect && previous && t-Date.parse(previous.observedAt) <= 90*60_000) {
+      ctx.beginPath(); ctx.moveTo(x(Date.parse(previous.observedAt)),y(previous.value)); ctx.lineTo(x(t),y(row.value)); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(x(t),y(row.value),2.4,0,Math.PI*2); ctx.fill();
+    previous=row;
+  }
+  canvas.onpointermove = event => {
+    const offset=event.clientX-canvas.getBoundingClientRect().left;
+    const nearby=plotted.reduce((best,row) => Math.abs(x(Date.parse(row.observedAt))-offset) < Math.abs(x(Date.parse(best.observedAt))-offset) ? row : best);
+    const distance=Math.abs(x(Date.parse(nearby.observedAt))-offset);
+    info.hidden=distance>14;
+    if (!info.hidden) {
+      const observed = nearby.periodStart ? time(nearby.periodStart)+" 至 "+time(nearby.observedAt) : time(nearby.observedAt);
+      info.textContent=observed+" · "+nearby.label;
+      info.style.left=Math.max(0,Math.min(offset+9,width-205))+"px";
+      info.style.top="0";
+    }
+  };
+  canvas.onpointerleave=() => { info.hidden=true; };
+}
+function drawTrends() {
+  if (!data) return;
+  const station = data.stations.find(item => item.id === stationId);
+  const pair = data.pairs[stationId];
+  $("sources").textContent = "AQHI："+station.label+" · 氣溫："+pair.temperature
+    +"（約 "+pair.temperatureKm.toFixed(1)+" km） · 雨量："+pair.rainfall;
+  const air=data.air.filter(row => row.payload.stationId===stationId).map(row => ({
+    observedAt:row.observedAt,value:score(row.payload.value),label:row.payload.value,
+  }));
+  drawChart("air-chart",air,{color:"#076d68",bounds:[1,11],ticks:[1,3,6,8,11],connect:true});
+  const weatherSeries = (metric, location, unit) => data.weather.filter(row => row.payload.metric===metric && row.payload.location===location).map(row => ({
+    observedAt:row.observedAt, periodStart:row.periodStart, value:row.payload.value, label:row.payload.value+" "+unit,
+  }));
+  drawChart("temp-chart",weatherSeries("temperature",pair.temperature,"°C"),{color:"#ac512c",connect:true});
+  const rain=weatherSeries("rainfall_max",pair.rainfall,"mm");
+  const maxRain=Math.max(1,...rain.map(row => row.value));
+  drawChart("rain-chart",rain,{color:"#3f6fa0",bounds:[0,maxRain],connect:false});
+}
+select.addEventListener("change", () => selectStation(select.value));
+
+function snapshotWindow(snapshot, hours) {
+  const start = Date.parse(snapshot.until) - hours * 3600_000;
+  const inWindow = row => Date.parse(row.observedAt) >= start;
+  return {
+    ...snapshot,
+    since: new Date(start).toISOString(),
+    air: snapshot.air.filter(inWindow),
+    weather: snapshot.weather.filter(inWindow),
+  };
+}
+
+async function load() {
+  pending?.abort();
+  const controller=new AbortController();
+  pending=controller;
+  try {
+    const url = snapshotUrl ? snapshotUrl+"?minute="+Math.floor(Date.now()/60_000) : "/dashboard/data?hours="+hours.value;
+    const response=await fetch(url,{signal:controller.signal,cache:"no-store"});
+    if (!response.ok) throw new Error("HTTP "+response.status);
+    const payload=await response.json();
+    if (controller.signal.aborted) return;
+    data=snapshotUrl ? snapshotWindow(payload, Number(hours.value)) : payload;
+    const newest=data.air.at(-1)?.observedAt;
+    latestRows=new Map(data.air.filter(row => row.observedAt===newest).map(row => [row.payload.stationId,row]));
+    $("notice").textContent="香港時間 "+time(data.since)+" 至 "+time(data.until)
+      +(data.publishedAt ? " · 快照更新 "+time(data.publishedAt) : "");
+    buildStations();
+    drawMap();
+    selectStation(stationId);
+  } catch (error) {
+    if (error.name!=="AbortError") $("notice").textContent="暫時無法讀取資料，稍後會自動重試。"
+      +(data?.publishedAt ? " 目前顯示 "+time(data.publishedAt)+" 的快照。" : "");
+  }
+}
+hours.addEventListener("change",load);
+new ResizeObserver(() => { drawMap(); drawTrends(); }).observe(document.querySelector("main"));
+setInterval(load,60_000);
+load();
+</script>
+</body>
+</html>
