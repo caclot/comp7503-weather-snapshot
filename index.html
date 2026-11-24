@@ -140,7 +140,6 @@ const messages = {
   noReadings: ["這段時間沒有有效讀數", "这段时间没有有效读数", "No readings in this period"],
   interval: ["{start} 至 {end}", "{start} 至 {end}", "{start} to {end}"],
   window: ["香港時間 {interval}", "香港时间 {interval}", "Hong Kong time {interval}"],
-  snapshot: ["快照更新 {time}", "快照更新 {time}", "Snapshot updated {time}"],
   retry: ["暫時無法讀取資料，稍後會自動重試。", "暂时无法读取数据，稍后会自动重试。", "Data is temporarily unavailable. Retrying automatically."],
   stale: ["目前顯示 {time} 的快照。", "目前显示 {time} 的快照。", "Showing the snapshot from {time}."],
   sources: [
@@ -423,8 +422,7 @@ function renderNotice() {
   if (loadFailed) {
     notice = t("retry") + (timestamp ? " " + t("stale", timestamp) : "");
   } else if (data) {
-    notice = t("window", { interval: interval(data.since, data.until) })
-      + (timestamp ? " · " + t("snapshot", timestamp) : "");
+    notice = t("window", { interval: interval(data.since, data.until) });
   }
   $("notice").textContent = notice;
 }
