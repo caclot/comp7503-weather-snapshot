@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="dashboard-snapshot" content="/data.json">
+<link id="dashboard-data" rel="preload" as="fetch" href="/data.json" crossorigin="anonymous">
 <title>香港天氣與空氣質素</title>
 <style>
   :root { color-scheme: light; font: 15px/1.5 system-ui,sans-serif; color:#172d3b; background:#eef3f4; --ink:#172d3b; --muted:#526e77; --stroke:#d5e2e3; --teal:#076d68 }
@@ -140,7 +140,7 @@
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const snapshotUrl = document.querySelector('meta[name="dashboard-snapshot"]').content;
+const snapshotUrl = document.getElementById("dashboard-data").href;
 const languages = ["zh-Hant", "zh-Hans", "en"];
 const messages = {
   title: ["香港天氣與空氣質素", "香港天气与空气质量", "Hong Kong Weather and Air Quality"],
@@ -724,7 +724,7 @@ async function load() {
   const controller=new AbortController();
   pending=controller;
   try {
-    const payload = await readData(snapshotUrl || "/dashboard/data?hours=720", controller.signal);
+    const payload = await readData(snapshotUrl, controller.signal);
     if (controller.signal.aborted) return;
     allData = payload;
     const newest=payload.air.at(-1)?.observedAt;
