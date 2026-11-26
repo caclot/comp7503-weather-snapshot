@@ -776,7 +776,7 @@ hours.addEventListener("change",load);
 const header = document.querySelector("header");
 new ResizeObserver(() => document.documentElement.style.setProperty("--header-height", header.offsetHeight + "px")).observe(header);
 new ResizeObserver(() => { drawMap(); drawTrends(); }).observe(document.querySelector("main"));
-setInterval(load,60_000);
+setInterval(load,300_000);
 load();
 </script>
 </body>
