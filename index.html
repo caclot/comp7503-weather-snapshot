@@ -57,6 +57,30 @@
   #analysis-results td:not(:first-child),#analysis-results th:not(:first-child) { text-align:right; font-variant-numeric:tabular-nums }
   #analysis details { margin-top:10px }
   #analysis summary { width:fit-content; cursor:pointer }
+  #weather-distribution { margin-top:16px }
+  #weather-distribution .top label { display:flex; align-items:center; flex-wrap:wrap; gap:6px }
+  #weather-distribution-title { min-width:0 }
+  .distribution-source { margin-top:7px }
+  .distribution-legend .dot { border-radius:2px }
+  .distribution-grid { display:grid; gap:10px; margin-top:10px }
+  .distribution-row,.distribution-axis { display:grid; grid-template-columns:minmax(9rem,1fr) minmax(0,3fr); gap:12px; align-items:center }
+  .distribution-axis { margin-top:10px; font-variant-numeric:tabular-nums }
+  .distribution-ticks { display:flex; justify-content:space-between; gap:4px }
+  .distribution-row h3 { font-size:13px; margin:0 }
+  .distribution-row p { margin:0; font-variant-numeric:tabular-nums }
+  .distribution-bar { display:flex; min-height:29px; min-width:0; overflow:hidden; background:#eef3f4; border-radius:5px }
+  .distribution-segment { display:grid; place-items:center; min-width:0; overflow:hidden; color:#fff; font-size:12px; font-weight:600; font-variant-numeric:tabular-nums }
+  .distribution-segment:nth-child(1) { background:#206c5b }
+  .distribution-segment:nth-child(2) { background:#806006 }
+  .distribution-segment:nth-child(3) { background:#a52635 }
+  #weather-distribution details { margin-top:12px }
+  #weather-distribution summary { width:fit-content; cursor:pointer }
+  #weather-distribution table { margin-top:5px }
+  #weather-distribution td:not(:first-child),#weather-distribution th:not(:first-child) { text-align:right; font-variant-numeric:tabular-nums }
+  @media (max-width:600px) {
+    .distribution-row,.distribution-axis { grid-template-columns:1fr; gap:4px }
+    .distribution-axis > span { display:none }
+  }
   .tooltip { position:absolute; z-index:2; pointer-events:none; background:#103a47; color:white; border-radius:6px; padding:6px 8px; font-size:12px; max-width:200px }
   a { color:var(--teal) }
   [hidden] { display:none !important }
@@ -136,6 +160,42 @@
     </table>
     <details class="subtle"><summary data-text="analysisMethod">配對及計算方法</summary><p data-text="analysisAlignment"></p><p data-text="analysisLimits"></p></details>
   </section>
+  <section id="weather-distribution" aria-labelledby="weather-distribution-title">
+    <div class="top">
+      <h2 id="weather-distribution-title" data-text="weatherDistributionTitle">不同天氣下的 AQHI 分布</h2>
+      <label for="weather-comparison">
+        <span class="subtle" data-text="weatherComparison">比較時段</span>
+        <select id="weather-comparison">
+          <option value="all" data-text="weatherAllHours">全時段</option>
+          <option value="day" data-text="weatherDayHours">白天（07:00–17:00）</option>
+        </select>
+      </label>
+    </div>
+    <p id="weather-distribution-source" class="subtle distribution-source" aria-live="polite"></p>
+    <div class="legend distribution-legend">
+      <span><i class="dot" style="--risk:#206c5b" aria-hidden="true"></i><span data-text="weatherRiskLow">低風險（1–3）</span></span>
+      <span><i class="dot" style="--risk:#806006" aria-hidden="true"></i><span data-text="weatherRiskModerate">中風險（4–6）</span></span>
+      <span><i class="dot" style="--risk:#a52635" aria-hidden="true"></i><span data-text="weatherRiskHigh">高及以上（7+）</span></span>
+    </div>
+    <div class="distribution-axis subtle" aria-hidden="true"><span></span><div id="weather-risk-scale" class="distribution-ticks"></div></div>
+    <div id="weather-risk-rows" class="distribution-grid"></div>
+    <details class="subtle">
+      <summary data-text="weatherCounts">查看樣本數及分組方法</summary>
+      <p data-text="weatherScope"></p>
+      <p data-text="weatherRare"></p>
+      <table>
+        <thead><tr>
+          <th scope="col" data-text="weatherType">天氣</th>
+          <th scope="col" data-text="weatherHoursLabel">小時</th>
+          <th scope="col" data-text="weatherRecordsLabel">記錄</th>
+          <th scope="col" data-text="low">低</th>
+          <th scope="col" data-text="moderate">中</th>
+          <th scope="col" data-text="weatherHighLabel">高及以上</th>
+        </tr></thead>
+        <tbody id="weather-counts-rows"></tbody>
+      </table>
+    </details>
+  </section>
 </main>
 <script>
 "use strict";
@@ -201,6 +261,42 @@ const messages = {
     "AQHI：{station} · 气温：{temperature}（约 {km} km） · 雨量：{rainfall}",
     "AQHI: {station} · Temperature: {temperature} (about {km} km away) · Rainfall: {rainfall}",
   ],
+  weatherDistributionTitle: ["不同天氣下的 AQHI 分布", "不同天气下的 AQHI 分布", "AQHI distribution by weather"],
+  weatherComparison: ["比較時段", "比较时段", "Hours to compare"],
+  weatherAllHours: ["全時段", "全时段", "All hours"],
+  weatherDayHours: ["白天（07:00–17:00）", "白天（07:00–17:00）", "Daytime (07:00–17:00)"],
+  weatherDistributionSource: [
+    "固定分析樣本 · 全港 18 站 · 2026/10/26 00:00 至 11/28 06:00（香港時間）· {count} 條站點小時記錄",
+    "固定分析样本 · 全港 18 站 · 2026/10/26 00:00 至 11/28 06:00（香港时间）· {count} 条站点小时记录",
+    "Fixed sample · 18 stations · 26 Oct 00:00–28 Nov 06:00, 2026 (Hong Kong time) · {count} station-hour records",
+  ],
+  weatherRiskLow: ["低風險（1–3）", "低风险（1–3）", "Low (1–3)"],
+  weatherRiskModerate: ["中風險（4–6）", "中风险（4–6）", "Moderate (4–6)"],
+  weatherRiskHigh: ["高及以上（7+）", "高及以上（7+）", "High or above (7+)"],
+  weatherCounts: ["查看樣本數及分組方法", "查看样本数及分组方法", "Sample counts and grouping"],
+  weatherScope: [
+    "按小時配對天文台的全港天氣標記與各站 AQHI。圖表使用固定分析樣本，時段由本節的選單控制。",
+    "按小时配对天文台的全港天气代码与各站 AQHI。图表使用固定分析样本，时段由本节的菜单控制。",
+    "The Observatory’s territory-wide weather icon is matched with each station’s AQHI for the same hour. This fixed analysis sample uses the time selector in this section.",
+  ],
+  weatherRare: [
+    "雨／大雨只涵蓋兩天內的 8 小時。比例為描述性比較，不能據此推斷因果。",
+    "雨／大雨只覆盖两天内的 8 小时。比例用于描述性比较，不能据此推断因果。",
+    "Rain or heavy rain covers eight hours across two dates. The proportions describe the sample; they do not establish causation.",
+  ],
+  weatherType: ["天氣", "天气", "Weather"],
+  weatherHoursLabel: ["小時", "小时", "Hours"],
+  weatherRecordsLabel: ["記錄", "记录", "Records"],
+  weatherHighLabel: ["高及以上", "高及以上", "High or above"],
+  weatherSampleHours: ["{count} 小時", "{count} 小时", "{count} h"],
+  weatherHeavyRain: ["雨／大雨", "雨／大雨", "Rain / heavy rain"],
+  weatherCloudy: ["多雲", "多云", "Cloudy"],
+  weatherLightRain: ["微雨", "微雨", "Light rain"],
+  weatherSunny: ["陽光充沛", "阳光充沛", "Sunny"],
+  weatherSunnyShowers: ["有陽光及驟雨", "有阳光及骤雨", "Sunny with showers"],
+  weatherSunnyIntervals: ["間有／短暫陽光", "间有／短暂阳光", "Sunny periods / intervals"],
+  weatherCloudyNight: ["夜間大致多雲", "夜间大致多云", "Mostly cloudy at night"],
+  weatherFairNight: ["夜間天色良好", "夜间天色良好", "Fair / mainly fine at night"],
   analysis: ["關聯分析", "关联分析", "Relationship analysis"],
   tempAir: ["氣溫與 AQHI", "气温与 AQHI", "Temperature and AQHI"],
   rainAir: ["雨量與 AQHI", "雨量与 AQHI", "Rainfall and AQHI"],
@@ -296,6 +392,70 @@ const hours = $("hours");
 const map = $("map");
 const mapCanvas = map.querySelector("canvas");
 
+const weatherRiskCounts = {
+  all: [
+    ["weatherHeavyRain", 8, 126, 18, 0],
+    ["weatherCloudy", 108, 1050, 892, 0],
+    ["weatherLightRain", 139, 1200, 1300, 0],
+    ["weatherSunny", 50, 416, 477, 7],
+    ["weatherSunnyShowers", 34, 257, 355, 0],
+    ["weatherSunnyIntervals", 225, 1481, 2555, 14],
+    ["weatherCloudyNight", 109, 711, 1251, 0],
+    ["weatherFairNight", 122, 737, 1415, 42],
+  ],
+  day: [
+    ["weatherLightRain", 34, 404, 208, 0],
+    ["weatherCloudy", 39, 434, 268, 0],
+    ["weatherSunny", 46, 349, 472, 7],
+    ["weatherSunnyShowers", 32, 226, 350, 0],
+    ["weatherSunnyIntervals", 211, 1304, 2480, 14],
+  ],
+};
+
+function renderWeatherDistribution() {
+  const locale = languages[languageIndex];
+  const number = new Intl.NumberFormat(locale);
+  const percent = new Intl.NumberFormat(locale, { style:"percent", maximumFractionDigits:1 });
+  const rows = weatherRiskCounts[$("weather-comparison").value];
+  const riskLabels = ["weatherRiskLow", "weatherRiskModerate", "weatherRiskHigh"];
+  const charts = document.createDocumentFragment();
+  const counts = document.createDocumentFragment();
+  let sampleCount = 0;
+
+  for (const [key, hoursCovered, ...bins] of rows) {
+    const total = bins.reduce((sum, value) => sum + value, 0);
+    sampleCount += total;
+    const label = t(key);
+    const row = element("div", undefined, "distribution-row");
+    const source = element("div");
+    source.append(element("h3", label), element("p", t("weatherSampleHours", { count:number.format(hoursCovered) }), "subtle"));
+    const proportions = bins.map(count => count / total);
+    const summary = proportions.map((share, index) => t(riskLabels[index]) + " " + percent.format(share)).join(" · ");
+    const bar = element("div", undefined, "distribution-bar");
+    bar.setAttribute("role", "img");
+    bar.setAttribute("aria-label", label + " · " + summary);
+    bar.title = summary;
+    for (const share of proportions) {
+      const segment = element("span", share >= .12 ? percent.format(share) : "", "distribution-segment");
+      segment.style.flex = String(share);
+      segment.setAttribute("aria-hidden", "true");
+      bar.append(segment);
+    }
+    row.append(source, bar);
+    charts.append(row);
+
+    const countRow = element("tr");
+    const heading = element("th", label);
+    heading.scope = "row";
+    countRow.append(heading, ...[hoursCovered, total, ...bins].map(value => element("td", number.format(value))));
+    counts.append(countRow);
+  }
+  $("weather-distribution-source").textContent = t("weatherDistributionSource", { count:number.format(sampleCount) });
+  $("weather-risk-scale").replaceChildren(...[0, .25, .5, .75, 1].map(share => element("span", percent.format(share))));
+  $("weather-risk-rows").replaceChildren(charts);
+  $("weather-counts-rows").replaceChildren(counts);
+}
+
 function applyLanguage(requested) {
   languageIndex = Math.max(0, languages.indexOf(requested));
   const language = languages[languageIndex];
@@ -315,6 +475,7 @@ function applyLanguage(requested) {
     entry.append(dot, document.createTextNode(t(key)));
     $("legend").append(entry);
   }
+  renderWeatherDistribution();
   render();
 }
 
@@ -745,6 +906,7 @@ $("language").addEventListener("change", event => {
   try { localStorage.setItem("weather-dashboard-language", language); } catch {}
   applyLanguage(language);
 });
+$("weather-comparison").addEventListener("change", renderWeatherDistribution);
 hours.addEventListener("change",renderSelectedWindow);
 const header = document.querySelector("header");
 new ResizeObserver(() => document.documentElement.style.setProperty("--header-height", header.offsetHeight + "px")).observe(header);
